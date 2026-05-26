@@ -150,7 +150,7 @@ export default function App() {
   const [fontStyle, setFontStyle] = useState<string>('cursive');
   const [isSimp, setIsSimp] = useState<boolean>(false);
   const [isGenerating, setIsGenerating] = useState<boolean>(true); 
-  const [showCheckout, setShowCheckout] = useState<boolean>(false); // ★ 控制結帳畫面
+  const [showCheckout, setShowCheckout] = useState<boolean>(false); 
   
   const cardRef = useRef<HTMLDivElement>(null);
   const { downloadCard } = useImageDownloader();
@@ -191,13 +191,22 @@ export default function App() {
   const switchScenery = (s: SceneryType) => { setActiveScenery(s); triggerGeneration(() => setCurrentName(pickName(s, genderFilter))); };
   const switchGender = (g: GenderType) => { setGenderFilter(g); triggerGeneration(() => setCurrentName(pickName(activeScenery, g))); };
 
+  // ★ 優化手機端發音機制：確保喚醒與防呆處理 ★
   const speak = useCallback(() => {
-    if (!window.speechSynthesis) return;
+    if (!window.speechSynthesis) {
+      alert("Your browser does not support text-to-speech.");
+      return;
+    }
+    
+    // 取消先前的發音序列，避免手機端列隊卡死
     window.speechSynthesis.cancel();
+    
     const textToSpeak = isSimp ? currentName.nameCn : currentName.nameTw;
     const utt = new SpeechSynthesisUtterance(textToSpeak);
     utt.lang = isSimp ? 'zh-CN' : 'zh-TW';
     utt.rate = 0.85;
+    utt.volume = 1; // 確保音量開啟
+    
     window.speechSynthesis.speak(utt);
   }, [currentName, isSimp]);
 
@@ -209,9 +218,10 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#EAE5DA] text-[#3A352E] font-sans flex flex-col items-center justify-between p-2 sm:p-3 select-none pb-2 sm:pb-3">
+    // ★ 優化：使用 h-[100dvh] 與 overflow-y-auto 解決手機版高度被工具列遮擋的問題 ★
+    <div className="min-h-[100dvh] h-[100dvh] overflow-y-auto bg-[#EAE5DA] text-[#3A352E] font-sans flex flex-col items-center justify-between p-2 sm:p-3 select-none pb-4 sm:pb-6">
 
-      <header className="text-center w-full max-w-md mt-1 flex flex-col items-center">
+      <header className="text-center w-full max-w-md mt-1 flex flex-col items-center shrink-0">
         <p className="text-sm sm:text-base tracking-[0.25em] sm:tracking-[0.35em] text-stone-900 font-bold uppercase mb-1 whitespace-nowrap">
           Aesthetic Traditional Name
         </p>
@@ -219,7 +229,7 @@ export default function App() {
 
       {!showCheckout ? (
         <>
-          <section className="w-full max-w-[300px] xs:max-w-[325px] sm:max-w-[340px] flex items-stretch gap-2 sm:gap-3 my-1">
+          <section className="w-full max-w-[300px] xs:max-w-[325px] sm:max-w-[340px] flex items-stretch gap-2 sm:gap-3 my-1 shrink-0">
             <div className="w-[30%] sm:w-[32%] relative flex flex-col items-center justify-center p-2 bg-stone-900/5 rounded-xl border border-stone-800/10 shadow-inner">
               <SafeImage
                 src="/LOGO.png"
@@ -271,7 +281,7 @@ export default function App() {
             </div>
           </section>
 
-          <section className="w-full max-w-[300px] xs:max-w-[325px] sm:max-w-[340px] my-1">
+          <section className="w-full max-w-[300px] xs:max-w-[325px] sm:max-w-[340px] my-1 shrink-0">
             <div ref={cardRef} className="relative w-full aspect-[4/5] rounded-xl overflow-hidden shadow-xl bg-stone-950 border border-stone-800/50 flex flex-col justify-between p-4 sm:p-5">
               <img src={cfg.image} alt={cfg.labelEn} className="absolute inset-0 w-full h-full object-cover opacity-60" />
               <div className={`absolute inset-0 bg-gradient-to-b ${cfg.color} via-stone-950/40 to-stone-950/95`} />
@@ -300,10 +310,11 @@ export default function App() {
 
               <div className="w-full z-10 flex flex-col gap-3 relative">
                 <div className={`flex justify-center transition-all duration-700 delay-200 ${isGenerating ? 'opacity-0 translate-y-4' : 'opacity-100 translate-y-0'}`}>
-                   <button data-html2canvas-ignore="true" onClick={speak} className="flex items-center gap-1.5 bg-amber-600/80 backdrop-blur-md hover:bg-amber-500 text-white px-4 py-1.5 rounded-full shadow-lg transition-transform active:scale-95">
-                      <Volume2 size={12} />
-                      <span className="text-[9px] font-medium tracking-wider uppercase">PRONUNCIATION</span>
-                      <span className="text-[8px] opacity-70">({currentName.pinyin})</span>
+                   {/* ★ 優化：大幅增加手機端發音按鈕的觸控區域(padding)與文字大小 ★ */}
+                   <button data-html2canvas-ignore="true" onClick={speak} className="flex items-center gap-2 bg-amber-600/80 backdrop-blur-md hover:bg-amber-500 text-white px-6 py-2.5 sm:px-4 sm:py-1.5 rounded-full shadow-lg transition-transform active:scale-95">
+                      <Volume2 size={16} />
+                      <span className="text-[10px] sm:text-[9px] font-medium tracking-wider uppercase">PRONUNCIATION</span>
+                      <span className="text-[9px] sm:text-[8px] opacity-70">({currentName.pinyin})</span>
                    </button>
                 </div>
 
@@ -329,7 +340,7 @@ export default function App() {
             </div>
           </section>
 
-          <footer className="w-full max-w-[300px] xs:max-w-[325px] sm:max-w-[340px] grid grid-cols-12 gap-1.5 mt-0.5">
+          <footer className="w-full max-w-[300px] xs:max-w-[325px] sm:max-w-[340px] grid grid-cols-12 gap-1.5 mt-0.5 shrink-0">
             <button onClick={regenerate} disabled={isGenerating} className="col-span-3 flex flex-col items-center justify-center gap-0.5 py-2 rounded-xl bg-white border border-stone-300 text-stone-700 text-[9px] font-medium tracking-wider uppercase shadow-sm active:scale-98 disabled:opacity-50">
               <RefreshCw size={14} className={`text-amber-700 ${isGenerating ? 'animate-spin' : ''}`} />
               REGENERATE
@@ -346,7 +357,7 @@ export default function App() {
             </button>
           </footer>
 
-          <div className="w-full max-w-[300px] xs:max-w-[325px] sm:max-w-[340px] h-[45px] sm:h-[50px] mt-1.5 rounded-lg border border-stone-300/80 border-dashed bg-black/5 flex items-center justify-center">
+          <div className="w-full max-w-[300px] xs:max-w-[325px] sm:max-w-[340px] h-[45px] sm:h-[50px] mt-1.5 rounded-lg border border-stone-300/80 border-dashed bg-black/5 flex items-center justify-center shrink-0">
              <span className="text-[9px] text-stone-500 tracking-widest uppercase">ADVERTISEMENT SPACE</span>
           </div>
         </>
