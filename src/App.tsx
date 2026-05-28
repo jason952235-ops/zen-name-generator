@@ -68,12 +68,11 @@ interface FontStyleItem {
 }
 
 const fontStyles: Record<string, FontStyleItem> = {
-  cursive: { font: "'Liu Jian Mao Cao', cursive", label: '草書', labelEn: 'Cursive' },
-  brush: { font: "'Ma Shan Zheng', cursive", label: '楷書', labelEn: 'Brush' },
-  scholar: { font: "'ZCOOL XiaoWei', serif", label: '行楷', labelEn: 'Scholar' }
+  cursive: { font: "'Liu Jian Mao Cao', 'Kaiti TC', 'BiauKai', 'DFKai-SB', cursive", label: '草書', labelEn: 'Cursive' },
+  brush: { font: "'Ma Shan Zheng', 'Kaiti TC', 'BiauKai', 'DFKai-SB', cursive", label: '楷書', labelEn: 'Brush' },
+  scholar: { font: "'ZCOOL XiaoWei', 'Noto Serif TC', 'PMingLiU', serif", label: '行楷', labelEn: 'Scholar' }
 };
 
-// ★ 智慧型備援：手刻傳統「硃砂紅篆刻印章」 (保留東方美學) ★
 const TraditionalSealFallback: React.FC<{ size?: string }> = ({ size = "w-16 h-16" }) => {
   return (
     <div className={`border-[3px] border-[#b22222] p-0.5 flex flex-wrap justify-center items-center text-[#b22222] bg-[#FDFBF7] select-none rounded-[3px] shadow-[inset_0_0_8px_rgba(178,34,34,0.15),0_2px_6px_rgba(0,0,0,0.15)] ${size}`}>
@@ -89,14 +88,12 @@ interface SafeImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
   fallback: React.ReactNode;
 }
 
-// ★ 智慧型圖片載入元件 ★
 const SafeImage: React.FC<SafeImageProps> = ({ src, alt, fallback, className, ...props }) => {
   const [error, setError] = useState(false);
   if (error) return <>{fallback}</>;
   return <img src={src} alt={alt} onError={() => setError(true)} className={className} {...props} />;
 };
 
-// ★ 優化：右下角的 LOGO 落款 ★
 const LogoTagStamp: React.FC<{ className?: string }> = ({ className = "" }) => (
   <div className={`relative flex items-center justify-center overflow-hidden transition-all duration-300 ${className}`}>
     <div className="absolute inset-0 bg-amber-50/10 rounded-full blur-md"></div>
@@ -114,7 +111,6 @@ interface RitualLoaderProps {
   isGenerating: boolean;
 }
 
-// ★ 充滿儀式感的渲染動畫元件 (英文化) ★
 const RitualLoader: React.FC<RitualLoaderProps> = ({ isGenerating }) => {
   return (
     <div
@@ -146,12 +142,17 @@ const RitualLoader: React.FC<RitualLoaderProps> = ({ isGenerating }) => {
 export default function App() {
   const [activeScenery, setActiveScenery] = useState<SceneryType>('bamboo');
   const [genderFilter, setGenderFilter] = useState<GenderType>('neutral');
-  const [currentName, setCurrentName] = useState<NameItem>(nameDatabase[359] || nameDatabase[0]);
+  const [currentName, setCurrentName] = useState<NameItem>(nameDatabase[359] || nameDatabase[0] || {
+    scenery: 'desert', gender: 'neutral', nameTw: '漠無跡', nameCn: '漠无迹', pinyin: 'Mò Wú-jì', storyEn: 'Means leaving no trace like shifting sands.'
+  });
   const [fontStyle, setFontStyle] = useState<string>('cursive');
   const [isSimp, setIsSimp] = useState<boolean>(false);
   const [isGenerating, setIsGenerating] = useState<boolean>(true); 
   const [showCheckout, setShowCheckout] = useState<boolean>(false); 
   
+  // ★ 新增狀態：用來控制 QR Code 的顯示與隱藏 ★
+  const [showQR, setShowQR] = useState<boolean>(false);
+
   const cardRef = useRef<HTMLDivElement>(null);
   const { downloadCard } = useImageDownloader();
 
@@ -176,7 +177,7 @@ export default function App() {
     if (pool.length === 0) pool = nameDatabase.filter(n => n.scenery === scenery);
     const others = pool.filter(n => n.nameTw !== currentObj?.nameTw);
     if (others.length > 0) return others[Math.floor(Math.random() * others.length)];
-    return pool[Math.floor(Math.random() * pool.length)];
+    return pool.length > 0 ? pool[Math.floor(Math.random() * pool.length)] : currentName;
   };
 
   const triggerGeneration = (action: () => void) => {
@@ -191,21 +192,37 @@ export default function App() {
   const switchScenery = (s: SceneryType) => { setActiveScenery(s); triggerGeneration(() => setCurrentName(pickName(s, genderFilter))); };
   const switchGender = (g: GenderType) => { setGenderFilter(g); triggerGeneration(() => setCurrentName(pickName(activeScenery, g))); };
 
-  // ★ 優化手機端發音機制：確保喚醒與防呆處理 ★
+  // ★ 核心魔法：特製的下載按鈕處理函數 ★
+  const handleDownloadClick = () => {
+    if (isGenerating) return;
+    
+    // 1. 瞬間讓 QR Code 顯示出來
+    setShowQR(true);
+    
+    // 2. 給瀏覽器 0.2 秒的時間把圖案畫在螢幕上，然後執行下載
+    setTimeout(() => {
+      downloadCard(cardRef, 'YuranYuxian-AestheticName.jpg');
+      
+      // 3. 等待 2 秒鐘確認下載截圖完成後，再把它隱藏起來，恢復畫面的純淨
+      setTimeout(() => {
+        setShowQR(false);
+      }, 2000);
+    }, 200);
+  };
+
   const speak = useCallback(() => {
     if (!window.speechSynthesis) {
       alert("Your browser does not support text-to-speech.");
       return;
     }
     
-    // 取消先前的發音序列，避免手機端列隊卡死
     window.speechSynthesis.cancel();
     
     const textToSpeak = isSimp ? currentName.nameCn : currentName.nameTw;
     const utt = new SpeechSynthesisUtterance(textToSpeak);
     utt.lang = isSimp ? 'zh-CN' : 'zh-TW';
     utt.rate = 0.85;
-    utt.volume = 1; // 確保音量開啟
+    utt.volume = 1; 
     
     window.speechSynthesis.speak(utt);
   }, [currentName, isSimp]);
@@ -213,12 +230,7 @@ export default function App() {
   const cfg = sceneryConfig[activeScenery];
   const font = fontStyles[fontStyle];
 
-  const handleStripeCheckout = (priceId: string) => {
-    alert(`Redirecting to Stripe checkout...\nPlan ID: ${priceId}`);
-  };
-
   return (
-    // ★ 優化：使用 h-[100dvh] 與 overflow-y-auto 解決手機版高度被工具列遮擋的問題 ★
     <div className="min-h-[100dvh] h-[100dvh] overflow-y-auto bg-[#EAE5DA] text-[#3A352E] font-sans flex flex-col items-center justify-between p-2 sm:p-3 select-none pb-4 sm:pb-6">
 
       <header className="text-center w-full max-w-md mt-1 flex flex-col items-center shrink-0">
@@ -286,35 +298,44 @@ export default function App() {
               <img src={cfg.image} alt={cfg.labelEn} className="absolute inset-0 w-full h-full object-cover opacity-60" />
               <div className={`absolute inset-0 bg-gradient-to-b ${cfg.color} via-stone-950/40 to-stone-950/95`} />
 
+              {/* ★ 動態隱藏/顯示的 QR Code ★ */}
+              {/* 利用 showQR 狀態控制 opacity，平時 opacity-0 完全透明，下載時變成 opacity-85 */}
+              <div className={`absolute top-5 right-5 z-20 w-12 h-12 bg-white/95 p-1 rounded-md shadow-lg transition-opacity duration-200 ${showQR ? 'opacity-85' : 'opacity-0 pointer-events-none'}`}>
+                {/* 如果您的圖片叫做 qr-code.jpg，請務必修改這裡的檔名！ */}
+                <img src="/qrcode.png" alt="Website QR Code" className="w-full h-full object-contain" />
+              </div>
+
+              {/* 畫面中央的英文浮水印 */}
+              <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none overflow-hidden">
+                <p className="text-white/10 text-2xl sm:text-3xl font-black uppercase tracking-[0.3em] whitespace-nowrap -rotate-12 select-none drop-shadow-md" style={{ fontFamily: "'Noto Serif', serif" }}>
+                  ZEN AESTHETIC NAMING
+                </p>
+              </div>
+
               <RitualLoader isGenerating={isGenerating} />
 
               <div className="w-full flex justify-between items-start z-10">
                 <div data-html2canvas-ignore="true" className="bg-stone-950/30 backdrop-blur-md border border-white/10 rounded-full p-0.5 flex text-[9px] shadow-sm tracking-wider uppercase">
-                  <button onClick={() => setIsSimp(false)} className={`px-2 py-0.5 rounded-full transition-colors ${!isSimp ? 'bg-white/20 text-white font-medium shadow-sm' : 'text-white/50 hover:text-white/80'}`}>Trad.</button>
-                  <button onClick={() => setIsSimp(true)} className={`px-2 py-0.5 rounded-full transition-colors ${isSimp ? 'bg-white/20 text-white font-medium shadow-sm' : 'text-white/50 hover:text-white/80'}`}>Simp.</button>
+                  <button onClick={() => setIsSimp(false)} className={`px-2 py-0.5 rounded-full transition-colors ${!isSimp ? 'bg-white/20 text-white font-medium shadow-sm' : 'text-white/50 hover:text-white/80'}`}>TRAD.</button>
+                  <button onClick={() => setIsSimp(true)} className={`px-2 py-0.5 rounded-full transition-colors ${isSimp ? 'bg-white/20 text-white font-medium shadow-sm' : 'text-white/50 hover:text-white/80'}`}>SIMP.</button>
                 </div>
                 <span className="text-white/30 text-[8px] tracking-widest uppercase pt-1">{cfg.labelEn} Concept</span>
               </div>
 
-              <div className={`relative text-center z-10 my-auto transition-all duration-1000 delay-100 ${isGenerating ? 'opacity-0 scale-95 blur-md' : 'opacity-100 scale-100 blur-0'}`}>
-                <div id="download-qr-code" style={{ display: 'none' }} className="absolute bottom-full left-1/2 -translate-x-1/2 mb-4 z-20">
-                   <div className="bg-white/95 p-1 rounded-md shadow-2xl">
-                     <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://yourwebsite.com" alt="QR Code" className="w-12 h-12 opacity-95" />
-                   </div>
-                </div>
-
+              <div className={`relative flex flex-col items-center justify-center z-10 my-auto transition-all duration-1000 delay-100 ${isGenerating ? 'opacity-0 scale-95 blur-md' : 'opacity-100 scale-100 blur-0'}`}>
                 <p className="leading-none text-5xl sm:text-6xl tracking-[0.15em] pl-[0.15em] drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)] text-amber-50" style={{ fontFamily: font.font }}>
                   {isSimp ? currentName.nameCn : currentName.nameTw}
+                </p>
+                <p className="mt-4 text-amber-100/70 text-xs sm:text-sm tracking-[0.4em] font-light uppercase drop-shadow-md" style={{ fontFamily: "'Noto Serif', serif" }}>
+                  {currentName.pinyin}
                 </p>
               </div>
 
               <div className="w-full z-10 flex flex-col gap-3 relative">
                 <div className={`flex justify-center transition-all duration-700 delay-200 ${isGenerating ? 'opacity-0 translate-y-4' : 'opacity-100 translate-y-0'}`}>
-                   {/* ★ 優化：大幅增加手機端發音按鈕的觸控區域(padding)與文字大小 ★ */}
                    <button data-html2canvas-ignore="true" onClick={speak} className="flex items-center gap-2 bg-amber-600/80 backdrop-blur-md hover:bg-amber-500 text-white px-6 py-2.5 sm:px-4 sm:py-1.5 rounded-full shadow-lg transition-transform active:scale-95">
                       <Volume2 size={16} />
                       <span className="text-[10px] sm:text-[9px] font-medium tracking-wider uppercase">PRONUNCIATION</span>
-                      <span className="text-[9px] sm:text-[8px] opacity-70">({currentName.pinyin})</span>
                    </button>
                 </div>
 
@@ -351,7 +372,8 @@ export default function App() {
               UNLOCK PREMIUM
             </button>
 
-            <button onClick={() => downloadCard(cardRef, 'YuranYuxian-AestheticName.jpg')} disabled={isGenerating} className="col-span-3 flex flex-col items-center justify-center gap-0.5 py-2 rounded-xl bg-[#3A352E] text-[#EAE5DA] text-[9px] font-medium tracking-wider uppercase shadow-md active:scale-98 disabled:opacity-50">
+            {/* ★ 修改：按下 SAVE ART 按鈕時，觸發我們剛才寫好的魔法函數 ★ */}
+            <button onClick={handleDownloadClick} disabled={isGenerating} className="col-span-3 flex flex-col items-center justify-center gap-0.5 py-2 rounded-xl bg-[#3A352E] text-[#EAE5DA] text-[9px] font-medium tracking-wider uppercase shadow-md active:scale-98 disabled:opacity-50">
               <Download size={14} className="text-amber-500" />
               SAVE ART
             </button>
@@ -392,9 +414,9 @@ export default function App() {
                 <li className="flex items-center gap-1.5"><Check size={12} className="text-amber-600" /> High-Res Artwork without watermarks</li>
                 <li className="flex items-center gap-1.5"><Check size={12} className="text-amber-600" /> Print-ready master file (300 DPI)</li>
               </ul>
-              <button onClick={() => handleStripeCheckout('price_1_99')} className="w-full py-2.5 rounded-xl bg-stone-900 text-white text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 hover:bg-stone-800 transition-colors">
+              <a href="https://jasonwave356.gumroad.com/l/zvhwrw" target="_blank" rel="noopener noreferrer" className="w-full py-2.5 rounded-xl bg-stone-900 text-white text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 hover:bg-stone-800 transition-colors">
                 <CreditCard size={14} /> Pay $1.99
-              </button>
+              </a>
             </div>
 
             {/* 方案二: $4.99 (主打) */}
@@ -423,9 +445,9 @@ export default function App() {
                   <span>Deep philosophy & personalized Zen prescription.</span>
                 </li>
               </ul>
-              <button onClick={() => handleStripeCheckout('price_4_99')} className="w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-stone-950 text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 hover:brightness-110 shadow-lg transition-all active:scale-95">
+              <a href="https://jasonwave356.gumroad.com/l/rzlgdp" target="_blank" rel="noopener noreferrer" className="w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-stone-950 text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 hover:brightness-110 shadow-lg transition-all active:scale-95">
                 <CreditCard size={14} /> Pay $4.99
-              </button>
+              </a>
             </div>
 
           </div>
@@ -433,7 +455,7 @@ export default function App() {
           <div className="mt-4 flex flex-col items-center opacity-60">
              <p className="text-[9px] text-stone-500 uppercase tracking-widest mb-1">Secured by</p>
              <div className="flex items-center gap-1 text-stone-600 font-bold text-xs tracking-tighter">
-                stripe
+                Gumroad
              </div>
           </div>
         </section>
