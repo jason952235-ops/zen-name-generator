@@ -1,7 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Volume2, RefreshCw, Download, Crown, ArrowLeft, Check, CreditCard, BookOpen } from 'lucide-react';
 import { nameDatabase } from './names';
-import { useImageDownloader } from './hooks/useImageDownloader';
 
 const hideScrollbarStyle = `
   .hide-scrollbar::-webkit-scrollbar { display: none !important; width: 0 !important; height: 0 !important; }
@@ -196,7 +195,7 @@ export default function App() {
         })
       });
       if (!response.ok) throw new Error('API 回應失敗');
-      await response.json(); // 已修正：僅讀取但不宣告變數
+      await response.json();
       showToast('AI 生成成功！準備連接 PDF 引擎。');
     } catch (error) {
       showToast('API 呼叫失敗，請確定已經執行 vercel dev。');
