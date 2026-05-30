@@ -195,7 +195,7 @@ export default function App() {
         })
       });
       if (!response.ok) throw new Error('API 回應失敗');
-      await response.json();
+      await response.json(); 
       showToast('AI 生成成功！準備連接 PDF 引擎。');
     } catch (error) {
       showToast('API 呼叫失敗，請確定已經執行 vercel dev。');
@@ -218,17 +218,19 @@ export default function App() {
         </div>
       </div>
 
-      <div className="mx-auto max-w-[400px] min-h-[100dvh] h-[100dvh] overflow-hidden bg-[#EAE5DA] text-[#3A352E] font-sans flex flex-col items-center p-2 sm:p-3 select-none pb-3 relative shadow-[0_0_50px_rgba(0,0,0,0.1)]">
+      {/* 縮小 max-w 並加入 py-4 讓畫面更有呼吸感 */}
+      <div className="mx-auto max-w-[375px] w-full min-h-[100dvh] h-[100dvh] overflow-hidden bg-[#EAE5DA] text-[#3A352E] font-sans flex flex-col items-center py-4 select-none relative shadow-[0_0_50px_rgba(0,0,0,0.15)]">
         {!showCheckout ? (
           <>
-            <header className="text-center w-full mt-1 flex flex-col items-center shrink-0">
-              <p className="text-[11px] sm:text-xs tracking-[0.25em] text-stone-900 font-bold uppercase mb-2 whitespace-nowrap">
+            <header className="text-center w-full flex flex-col items-center shrink-0 px-8">
+              <p className="text-[11px] sm:text-xs tracking-[0.25em] text-stone-900 font-bold uppercase mb-3 whitespace-nowrap">
                 Aesthetic Traditional Name
               </p>
             </header>
 
-            <section className="w-full flex items-stretch gap-2 shrink-0 px-1 mb-2">
-              <div className="w-[20%] relative flex flex-col items-center justify-center p-1.5 overflow-hidden bg-stone-900/5 rounded-xl border border-stone-800/10 shadow-inner">
+            {/* 加入 px-8 大留白 */}
+            <section className="w-full flex items-stretch gap-3 shrink-0 px-8 mb-4">
+              <div className="w-[22%] relative flex flex-col items-center justify-center p-1.5 overflow-hidden bg-stone-900/5 rounded-xl border border-stone-800/10 shadow-inner">
                 <SafeImage src="/LOGO.png" alt="Yuran Yuxian" className="w-full h-full max-h-[80px] object-contain mix-blend-multiply" fallback={<div className="py-2 flex flex-col items-center justify-center h-full"><h1 className="text-sm font-semibold tracking-widest text-stone-800 font-serif" style={{ writingMode: 'vertical-rl', textOrientation: 'upright' }}>悠然餘閒</h1></div>} />
               </div>
               <div className="flex-1 flex flex-col justify-between gap-1">
@@ -280,8 +282,9 @@ export default function App() {
               </div>
             </section>
 
-            <section className="w-full flex-1 min-h-0 shrink-1 px-1 mb-2 flex flex-col">
-              <div ref={cardRef} className="relative w-full h-full rounded-xl overflow-hidden shadow-xl bg-stone-950 border border-stone-800/50 flex flex-col justify-between p-4">
+            {/* 加入 px-8 大留白 */}
+            <section className="w-full flex-1 min-h-0 shrink-1 px-8 mb-4 flex flex-col">
+              <div ref={cardRef} className="relative w-full h-full rounded-2xl overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.3)] bg-stone-950 border border-stone-800/50 flex flex-col justify-between p-4 sm:p-5">
                 <img src={cfg.image} alt={cfg.labelEn} className="absolute inset-0 w-full h-full object-cover opacity-60" />
                 <div className={`absolute inset-0 bg-gradient-to-b ${cfg.color} via-stone-950/40 to-stone-950/95`} />
                 <div className={`absolute top-5 right-5 z-20 w-12 h-12 bg-white/95 p-1 rounded-md shadow-lg transition-opacity duration-200 ${showQR ? 'opacity-85' : 'opacity-0 pointer-events-none'}`}><img src="/qrcode.png" alt="QR" className="w-full h-full object-contain" /></div>
@@ -314,21 +317,25 @@ export default function App() {
               </div>
             </section>
 
-            <footer className="w-full grid grid-cols-12 gap-1.5 shrink-0 px-1 mb-1.5">
-              <button onClick={regenerate} disabled={isGenerating} className="col-span-3 flex flex-col items-center justify-center gap-0.5 py-2 rounded-xl bg-white border border-stone-300 text-stone-700 text-[8px] font-medium tracking-wider uppercase shadow-sm active:scale-[0.98] disabled:opacity-50"><RefreshCw size={12} className={`text-amber-700 ${isGenerating ? 'animate-spin' : ''}`} />REGENERATE</button>
-              <button onClick={() => setShowCheckout(true)} disabled={isGenerating} className="col-span-6 flex flex-col items-center justify-center gap-0.5 py-2 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 text-stone-950 text-[9px] font-bold tracking-widest uppercase shadow-lg active:scale-[0.98] hover:brightness-105 border border-amber-600/50 disabled:opacity-80"><Crown size={12} className="text-white animate-pulse" />UNLOCK PREMIUM</button>
-              <button onClick={handleDownloadClick} disabled={isGenerating} className="col-span-3 flex flex-col items-center justify-center gap-0.5 py-2 rounded-xl bg-[#3A352E] text-[#EAE5DA] text-[8px] font-medium tracking-wider uppercase shadow-md active:scale-[0.98] disabled:opacity-50"><Download size={12} className="text-amber-500" />SAVE ART</button>
+            {/* 加入 px-8 大留白 */}
+            <footer className="w-full grid grid-cols-12 gap-2 shrink-0 px-8 mb-3">
+              <button onClick={regenerate} disabled={isGenerating} className="col-span-3 flex flex-col items-center justify-center gap-0.5 py-2.5 rounded-xl bg-white border border-stone-300 text-stone-700 text-[8px] font-medium tracking-wider uppercase shadow-sm active:scale-[0.98] disabled:opacity-50"><RefreshCw size={12} className={`text-amber-700 ${isGenerating ? 'animate-spin' : ''}`} />REGENERATE</button>
+              <button onClick={() => setShowCheckout(true)} disabled={isGenerating} className="col-span-6 flex flex-col items-center justify-center gap-0.5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 text-stone-950 text-[9px] font-bold tracking-widest uppercase shadow-lg active:scale-[0.98] hover:brightness-105 border border-amber-600/50 disabled:opacity-80"><Crown size={12} className="text-white animate-pulse" />UNLOCK PREMIUM</button>
+              <button onClick={handleDownloadClick} disabled={isGenerating} className="col-span-3 flex flex-col items-center justify-center gap-0.5 py-2.5 rounded-xl bg-[#3A352E] text-[#EAE5DA] text-[8px] font-medium tracking-wider uppercase shadow-md active:scale-[0.98] disabled:opacity-50"><Download size={12} className="text-amber-500" />SAVE ART</button>
             </footer>
 
-            <div className="w-full h-[40px] rounded-lg border border-stone-300/80 border-dashed bg-black/5 flex items-center justify-center shrink-0 mx-1">
-               <span className="text-[8px] text-stone-500 tracking-widest uppercase">ADVERTISEMENT SPACE</span>
+            {/* 加入 px-8 大留白 */}
+            <div className="w-full px-8 shrink-0 pb-1">
+               <div className="w-full h-[40px] rounded-lg border border-stone-300/80 border-dashed bg-black/5 flex items-center justify-center">
+                  <span className="text-[8px] text-stone-500 tracking-widest uppercase">ADVERTISEMENT SPACE</span>
+               </div>
             </div>
           </>
         ) : (
           <>
             <div className="w-full flex flex-col items-center flex-1 overflow-y-auto hide-scrollbar pb-6 pt-2 relative">
               
-              <div className="flex flex-col items-center mb-6 w-full px-2 shrink-0">
+              <div className="flex flex-col items-center mb-6 w-full px-4 shrink-0">
                 <h2 className="text-[10px] tracking-[0.25em] font-bold text-stone-800 uppercase mb-4 text-center mt-1">
                   Aesthetic Traditional Name
                 </h2>
@@ -352,10 +359,10 @@ export default function App() {
               </div>
 
               <div className="w-full relative shrink-0">
-                <div className="swipe-container hide-scrollbar w-full items-center" onScroll={handleScroll}>
+                <div className="swipe-container hide-scrollbar w-full items-center px-6" onScroll={handleScroll}>
                   
                   {/* ====== Tier 1: THE SCROLL ====== */}
-                  <div className="w-full min-w-full flex-shrink-0 snap-center px-4 flex justify-center">
+                  <div className="w-full min-w-full flex-shrink-0 snap-center flex justify-center">
                     <div className="w-full max-w-[280px] bg-[#FDFBF7] rounded-[24px] p-5 shadow-[0_8px_30px_rgb(0,0,0,0.06)] border border-stone-200 flex flex-col relative">
                       
                       <div className="flex gap-4 items-end justify-center mb-6 mt-4 h-[140px]">
@@ -398,7 +405,7 @@ export default function App() {
                   </div>
 
                   {/* ====== Tier 2: THE AWAKENING ====== */}
-                  <div className="w-full min-w-full flex-shrink-0 snap-center px-4 flex justify-center">
+                  <div className="w-full min-w-full flex-shrink-0 snap-center flex justify-center">
                     <div className="w-full max-w-[280px] bg-[#1A1816] rounded-[24px] p-5 shadow-2xl border border-stone-800 flex flex-col relative">
                       <div className="absolute top-0 right-4 bg-[#F5A623] text-[#1A1816] text-[8px] font-bold px-2 py-1 rounded-b-md tracking-widest uppercase">Most Popular</div>
                       
@@ -441,7 +448,7 @@ export default function App() {
                   </div>
 
                   {/* ====== Tier 3: THE ENLIGHTENMENT ====== */}
-                  <div className="w-full min-w-full flex-shrink-0 snap-center px-4 flex justify-center">
+                  <div className="w-full min-w-full flex-shrink-0 snap-center flex justify-center">
                     <div className="w-full max-w-[280px] bg-[#FDFBF7] rounded-[24px] p-5 shadow-[0_8px_30px_rgb(0,0,0,0.06)] border border-stone-200 flex flex-col relative">
                       
                       <div className="flex flex-col items-center justify-center mb-6 mt-4 h-[140px]">
