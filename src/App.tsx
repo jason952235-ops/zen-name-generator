@@ -10,6 +10,19 @@ import BookletPreview from './components/BookletPreview';
 const hideScrollbarStyle = `
   .hide-scrollbar::-webkit-scrollbar { display: none; }
   .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  /* 强化移动端滑动体验 */
+  .swipe-container {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+    overscroll-behavior-x: contain;
+  }
+  .swipe-container > * {
+    scroll-snap-align: center;
+    flex-shrink: 0;
+  }
 `;
 
 type SceneryType = 'bamboo' | 'jiangnan' | 'mountain' | 'desert';
@@ -84,7 +97,6 @@ export default function App() {
   const [activeScenery, setActiveScenery] = useState<SceneryType>('bamboo');
   const [genderFilter, setGenderFilter] = useState<GenderType>('neutral');
   
-  // 修正：動態取得預設值，避免陣列長度改變時出錯
   const [currentName, setCurrentName] = useState<NameItem>(
     nameDatabase.length > 0 
       ? nameDatabase[Math.floor(Math.random() * nameDatabase.length)] 
@@ -103,13 +115,11 @@ export default function App() {
   const [showRedeem, setShowRedeem] = useState(false);
   const [orderId, setOrderId] = useState('');
   
-  // 新增：Toast 提示狀態
   const [toastMessage, setToastMessage] = useState<string>('');
 
   const cardRef = useRef<HTMLDivElement>(null);
   const { downloadCard } = useImageDownloader();
 
-  // 修正：移除動態載入 html2canvas 的寫法，改用純 setTimeout
   useEffect(() => {
     const timer = setTimeout(() => setIsGenerating(false), 2800);
     return () => clearTimeout(timer);
@@ -129,7 +139,7 @@ export default function App() {
   };
 
   const triggerGeneration = (action: () => void) => {
-    if (isGenerating) return; // 避免動畫中重複觸發
+    if (isGenerating) return;
     setIsGenerating(true);
     setTimeout(() => { action(); setTimeout(() => setIsGenerating(false), 300); }, 2800);
   };
@@ -194,7 +204,6 @@ export default function App() {
     <>
       <style>{hideScrollbarStyle}</style>
       
-      {/* Toast Notification */}
       <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 ${toastMessage ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'}`}>
         <div className="bg-stone-900/90 backdrop-blur-md text-amber-50 text-xs px-4 py-2 rounded-full shadow-lg border border-stone-700 font-medium tracking-wide">
           {toastMessage}
@@ -223,7 +232,7 @@ export default function App() {
                       <button 
                         key={key} 
                         onClick={() => switchScenery(key)} 
-                        disabled={isGenerating} // 修正：加入 disabled 防止動畫期間點擊
+                        disabled={isGenerating}
                         className={`relative rounded-lg overflow-hidden h-10 transition-all duration-300 border disabled:cursor-not-allowed ${activeScenery === key ? 'border-amber-700/80 scale-[1.03] shadow-md z-20' : 'border-stone-400/20 opacity-60 grayscale hover:opacity-80'}`}
                       >
                         <img src={s.image} alt={s.labelEn} className="absolute inset-0 w-full h-full object-cover" />
@@ -241,7 +250,7 @@ export default function App() {
                     <button 
                       key={g} 
                       onClick={() => switchGender(g)} 
-                      disabled={isGenerating} // 修正：加入 disabled
+                      disabled={isGenerating}
                       className={`flex-1 py-1.5 rounded-md text-[9px] tracking-widest transition-all uppercase disabled:cursor-not-allowed ${genderFilter === g ? 'bg-[#3A352E] text-[#EAE5DA] font-medium shadow-sm' : 'text-stone-600 hover:text-stone-900'}`}
                     >
                       {g === 'male' ? 'MALE' : g === 'female' ? 'FEMALE' : 'NEUTRAL'}
@@ -253,7 +262,7 @@ export default function App() {
                     <button 
                       key={k} 
                       onClick={() => setFontStyle(k)} 
-                      disabled={isGenerating} // 修正：加入 disabled
+                      disabled={isGenerating}
                       className={`flex-1 py-1.5 rounded-lg text-[10px] uppercase tracking-wider transition-all border shadow-sm disabled:cursor-not-allowed ${fontStyle === k ? 'bg-amber-800 border-amber-800 text-white scale-[1.02] shadow-md' : 'bg-white/60 border-stone-300 text-stone-700 hover:border-amber-700'}`} 
                       style={{ fontFamily: v.font }}
                     >
@@ -326,9 +335,18 @@ export default function App() {
               <div className={`w-2 h-2 rounded-full transition-all duration-300 ${activeTier === 3 ? 'bg-stone-800 scale-125' : 'bg-stone-300'}`} />
             </div>
 
-            <div className="w-full flex overflow-x-auto snap-x snap-mandatory hide-scrollbar gap-4 pb-4" onScroll={handleScroll}>
+            {/* 修正滑动容器：使用 swipe-container class 并加上强制内联样式 */}
+            <div 
+              className="w-full flex overflow-x-auto snap-x snap-mandatory hide-scrollbar gap-4 pb-4 swipe-container"
+              style={{ 
+                WebkitOverflowScrolling: 'touch',
+                scrollSnapType: 'x mandatory',
+                overflowY: 'hidden'
+              }}
+              onScroll={handleScroll}
+            >
               
-              {/* ===================== 卡片 1：$1.99 ===================== */}
+              {/* 卡片 1：$1.99 */}
               <div className="min-w-full snap-center flex flex-col bg-white rounded-3xl border border-stone-200 shadow-sm overflow-hidden relative">
                 <div className="bg-stone-100 py-6 px-4 flex justify-center items-end gap-5 border-b border-stone-200">
                   <div className="flex flex-col items-center gap-2">
@@ -377,7 +395,7 @@ export default function App() {
                 </div>
               </div>
 
-              {/* ===================== 卡片 2：$4.99 ===================== */}
+              {/* 卡片 2：$4.99 */}
               <div className="min-w-full snap-center flex flex-col bg-stone-900 rounded-3xl border border-amber-500/40 shadow-xl overflow-hidden relative">
                 <div className="absolute top-0 right-0 bg-amber-500 text-stone-950 text-[8px] font-bold uppercase tracking-widest px-3 py-1 rounded-bl-lg z-10">Most Popular</div>
                 <div className="bg-stone-950/50 py-6 px-4 flex justify-center items-center gap-5 border-b border-stone-800">
@@ -423,7 +441,7 @@ export default function App() {
                 </div>
               </div>
 
-              {/* ===================== 卡片 3：$9.99 (The Enlightenment) ===================== */}
+              {/* 卡片 3：$9.99 */}
               <div className="min-w-full snap-center flex flex-col bg-[#FCFAF5] rounded-3xl border border-[#D9D0B8] shadow-md overflow-hidden relative">
                 
                 <div className="bg-[#F5F2EB] py-8 px-4 flex justify-center items-center border-b border-[#E8E5DD] relative overflow-hidden">
@@ -468,7 +486,6 @@ export default function App() {
                     <CreditCard size={16} /> Unlock for $9.99
                   </a>
 
-                  {/* 兌換機制 UI */}
                   <div className="mt-3 flex flex-col items-center w-full">
                     <button 
                       onClick={() => setShowRedeem(!showRedeem)} 
