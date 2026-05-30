@@ -1,7 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Volume2, RefreshCw, Download, Crown, ArrowLeft, Check, CreditCard, BookOpen } from 'lucide-react';
 import { nameDatabase } from './names';
-import { useImageDownloader } from './hooks/useImageDownloader';
 
 const hideScrollbarStyle = `
   .hide-scrollbar::-webkit-scrollbar { display: none !important; width: 0 !important; height: 0 !important; }
@@ -101,14 +100,10 @@ export default function App() {
   
   const [activeTier, setActiveTier] = useState<number>(1);
   const [isMintingPDF, setIsMintingPDF] = useState(false); 
-  
   const [toastMessage, setToastMessage] = useState<string>('');
 
-  // 產生唯一的 IP ID，僅在元件初次載入時生成一次
   const [uniqueIpId] = useState(`IP ID: YR-${Math.floor(10000 + Math.random() * 90000)}`);
-
   const cardRef = useRef<HTMLDivElement>(null);
-  const { downloadCard } = useImageDownloader();
 
   useEffect(() => {
     const timer = setTimeout(() => setIsGenerating(false), 2800);
@@ -138,10 +133,37 @@ export default function App() {
   const switchScenery = (s: SceneryType) => { setActiveScenery(s); triggerGeneration(() => setCurrentName(pickName(s, genderFilter))); };
   const switchGender = (g: GenderType) => { setGenderFilter(g); triggerGeneration(() => setCurrentName(pickName(activeScenery, g))); };
 
+  // 徹底修正的下載功能：動態載入 html2canvas 確保不會報錯
   const handleDownloadClick = () => {
-    if (isGenerating) return;
+    if (isGenerating || !cardRef.current) return;
     setShowQR(true);
-    setTimeout(() => { downloadCard(cardRef, 'YuranYuxian-AestheticName.jpg'); setTimeout(() => setShowQR(false), 2000); }, 200);
+    showToast('Saving Art...');
+    
+    setTimeout(() => {
+      const loadHtml2Canvas = () => {
+        if ((window as any).html2canvas) return Promise.resolve((window as any).html2canvas);
+        return new Promise((resolve, reject) => {
+          const script = document.createElement('script');
+          script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
+          script.onload = () => resolve((window as any).html2canvas);
+          script.onerror = reject;
+          document.head.appendChild(script);
+        });
+      };
+
+      loadHtml2Canvas().then((html2canvas: any) => {
+        html2canvas(cardRef.current, { useCORS: true, scale: 2, backgroundColor: '#0c0a09' }).then((canvas: HTMLCanvasElement) => {
+          const link = document.createElement('a');
+          link.download = 'YuranYuxian-AestheticName.jpg';
+          link.href = canvas.toDataURL('image/jpeg', 0.9);
+          link.click();
+          setShowQR(false);
+        });
+      }).catch(() => {
+        showToast('Download failed. Please check network.');
+        setShowQR(false);
+      });
+    }, 400);
   };
 
   const speak = useCallback(() => {
@@ -175,10 +197,8 @@ export default function App() {
       });
       if (!response.ok) throw new Error('API 回應失敗');
       const aiData = await response.json();
-      console.log("AI 產生的專屬內容：", aiData);
       showToast('AI 生成成功！準備連接 PDF 引擎。');
     } catch (error) {
-      console.error('API 測試失敗：', error);
       showToast('API 呼叫失敗，請確定已經執行 vercel dev。');
     } finally {
       setIsMintingPDF(false);
@@ -199,20 +219,21 @@ export default function App() {
         </div>
       </div>
 
-      <div className="mx-auto max-w-[400px] min-h-[100dvh] h-[100dvh] overflow-hidden bg-[#EAE5DA] text-[#3A352E] font-sans flex flex-col items-center justify-between p-2 sm:p-3 select-none pb-4 relative shadow-[0_0_50px_rgba(0,0,0,0.1)]">
+      <div className="mx-auto max-w-[400px] min-h-[100dvh] h-[100dvh] overflow-hidden bg-[#EAE5DA] text-[#3A352E] font-sans flex flex-col items-center p-2 sm:p-3 select-none pb-3 relative shadow-[0_0_50px_rgba(0,0,0,0.1)]">
         {!showCheckout ? (
           <>
             <header className="text-center w-full mt-1 flex flex-col items-center shrink-0">
-              <p className="text-sm tracking-[0.25em] text-stone-900 font-bold uppercase mb-1 whitespace-nowrap">
+              <p className="text-[11px] sm:text-xs tracking-[0.25em] text-stone-900 font-bold uppercase mb-2 whitespace-nowrap">
                 Aesthetic Traditional Name
               </p>
             </header>
 
-            <section className="w-full flex items-stretch gap-2 my-1 shrink-0 px-1">
-              <div className="w-[30%] relative flex flex-col items-center justify-center p-1 overflow-hidden bg-stone-900/5 rounded-xl border border-stone-800/10 shadow-inner">
-                <SafeImage src="/LOGO.png" alt="Yuran Yuxian" className="w-full h-full max-h-[160px] object-contain mix-blend-multiply scale-[1.5] transform transition-transform" fallback={<div className="py-2 flex flex-col items-center justify-center h-full"><h1 className="text-lg font-semibold tracking-widest text-stone-800 font-serif" style={{ writingMode: 'vertical-rl', textOrientation: 'upright' }}>悠然餘閒</h1></div>} />
+            <section className="w-full flex items-stretch gap-2 shrink-0 px-1 mb-2">
+              {/* 縮小 LOGO 佔比，給予畫面呼吸感 */}
+              <div className="w-[20%] relative flex flex-col items-center justify-center p-1.5 overflow-hidden bg-stone-900/5 rounded-xl border border-stone-800/10 shadow-inner">
+                <SafeImage src="/LOGO.png" alt="Yuran Yuxian" className="w-full h-full max-h-[80px] object-contain mix-blend-multiply" fallback={<div className="py-2 flex flex-col items-center justify-center h-full"><h1 className="text-sm font-semibold tracking-widest text-stone-800 font-serif" style={{ writingMode: 'vertical-rl', textOrientation: 'upright' }}>悠然餘閒</h1></div>} />
               </div>
-              <div className="flex-1 flex flex-col justify-between gap-1.5">
+              <div className="flex-1 flex flex-col justify-between gap-1">
                 <div className="grid grid-cols-2 gap-1.5">
                   {(Object.keys(sceneryConfig) as SceneryType[]).map((key) => {
                     const s = sceneryConfig[key];
@@ -221,13 +242,13 @@ export default function App() {
                         key={key} 
                         onClick={() => switchScenery(key)} 
                         disabled={isGenerating}
-                        className={`relative rounded-lg overflow-hidden h-10 transition-all duration-300 border disabled:cursor-not-allowed ${activeScenery === key ? 'border-amber-700/80 scale-[1.03] shadow-md z-20' : 'border-stone-400/20 opacity-60 grayscale hover:opacity-80'}`}
+                        className={`relative rounded-lg overflow-hidden h-9 transition-all duration-300 border disabled:cursor-not-allowed ${activeScenery === key ? 'border-amber-700/80 shadow-md z-20' : 'border-stone-400/20 opacity-60 grayscale hover:opacity-80'}`}
                       >
                         <img src={s.image} alt={s.labelEn} className="absolute inset-0 w-full h-full object-cover" />
                         <div className={`absolute inset-0 bg-gradient-to-t ${s.color}`} />
                         <div className="absolute inset-0 flex flex-col items-center justify-center">
-                          <span className="text-xs font-light text-white drop-shadow" style={{ fontFamily: "'Liu Jian Mao Cao', cursive" }}>{s.tag}</span>
-                          <span className="text-[7px] text-white/90 scale-90 tracking-widest mt-0.5 uppercase">{s.labelEn}</span>
+                          <span className="text-[10px] font-light text-white drop-shadow" style={{ fontFamily: "'Liu Jian Mao Cao', cursive" }}>{s.tag}</span>
+                          <span className="text-[6px] text-white/90 scale-90 tracking-widest uppercase">{s.labelEn}</span>
                         </div>
                       </button>
                     );
@@ -239,7 +260,7 @@ export default function App() {
                       key={g} 
                       onClick={() => switchGender(g)} 
                       disabled={isGenerating}
-                      className={`flex-1 py-1.5 rounded-md text-[9px] tracking-widest transition-all uppercase disabled:cursor-not-allowed ${genderFilter === g ? 'bg-[#3A352E] text-[#EAE5DA] font-medium shadow-sm' : 'text-stone-600 hover:text-stone-900'}`}
+                      className={`flex-1 py-1 rounded-md text-[8px] tracking-widest transition-all uppercase disabled:cursor-not-allowed ${genderFilter === g ? 'bg-[#3A352E] text-[#EAE5DA] font-medium shadow-sm' : 'text-stone-600 hover:text-stone-900'}`}
                     >
                       {g === 'male' ? 'MALE' : g === 'female' ? 'FEMALE' : 'NEUTRAL'}
                     </button>
@@ -251,7 +272,7 @@ export default function App() {
                       key={k} 
                       onClick={() => setFontStyle(k)} 
                       disabled={isGenerating}
-                      className={`flex-1 py-1.5 rounded-lg text-[10px] uppercase tracking-wider transition-all border shadow-sm disabled:cursor-not-allowed ${fontStyle === k ? 'bg-amber-800 border-amber-800 text-white scale-[1.02] shadow-md' : 'bg-white/60 border-stone-300 text-stone-700 hover:border-amber-700'}`} 
+                      className={`flex-1 py-1 rounded-lg text-[9px] uppercase tracking-wider transition-all border shadow-sm disabled:cursor-not-allowed ${fontStyle === k ? 'bg-amber-800 border-amber-800 text-white shadow-md' : 'bg-white/60 border-stone-300 text-stone-700 hover:border-amber-700'}`} 
                       style={{ fontFamily: v.font }}
                     >
                       {v.labelEn}
@@ -261,8 +282,9 @@ export default function App() {
               </div>
             </section>
 
-            <section className="w-full my-1 shrink-0 px-1">
-              <div ref={cardRef} className="relative w-full aspect-[4/5] rounded-xl overflow-hidden shadow-xl bg-stone-950 border border-stone-800/50 flex flex-col justify-between p-4">
+            {/* 修改為主卡片 flex-1 動態填滿，不再因固定比例被切掉 */}
+            <section className="w-full flex-1 min-h-0 shrink-1 px-1 mb-2 flex flex-col">
+              <div ref={cardRef} className="relative w-full h-full rounded-xl overflow-hidden shadow-xl bg-stone-950 border border-stone-800/50 flex flex-col justify-between p-4">
                 <img src={cfg.image} alt={cfg.labelEn} className="absolute inset-0 w-full h-full object-cover opacity-60" />
                 <div className={`absolute inset-0 bg-gradient-to-b ${cfg.color} via-stone-950/40 to-stone-950/95`} />
                 <div className={`absolute top-5 right-5 z-20 w-12 h-12 bg-white/95 p-1 rounded-md shadow-lg transition-opacity duration-200 ${showQR ? 'opacity-85' : 'opacity-0 pointer-events-none'}`}><img src="/qrcode.png" alt="QR" className="w-full h-full object-contain" /></div>
@@ -284,32 +306,31 @@ export default function App() {
                      <button data-html2canvas-ignore="true" onClick={speak} className="flex items-center gap-2 bg-amber-600/80 backdrop-blur-md hover:bg-amber-500 text-white px-6 py-2.5 rounded-full shadow-lg transition-transform active:scale-[0.95]"><Volume2 size={16} /><span className="text-[10px] font-medium tracking-wider uppercase">PRONUNCIATION</span></button>
                   </div>
                   <div className="w-full flex items-stretch gap-2 transition-all duration-700 delay-300">
-                    <div className={`flex-1 backdrop-blur-md bg-stone-950/60 border border-white/5 rounded-xl p-3 shadow-xl flex flex-col justify-center relative min-h-[75px] ${isGenerating ? 'opacity-0 translate-y-4' : 'opacity-100 translate-y-0'}`}>
+                    <div className={`flex-1 backdrop-blur-md bg-stone-950/60 border border-white/5 rounded-xl p-3 shadow-xl flex flex-col justify-center relative min-h-[70px] ${isGenerating ? 'opacity-0 translate-y-4' : 'opacity-100 translate-y-0'}`}>
                       <p className="text-amber-500 text-[8px] tracking-[0.25em] uppercase mb-1 font-medium">AESTHETIC CONCEPT</p>
-                      <p className="text-stone-200 text-[10px] leading-relaxed font-light tracking-wide" style={{ fontFamily: "'Noto Serif SC', serif" }}>{currentName.storyEn}</p>
+                      <p className="text-stone-200 text-[9px] leading-relaxed font-light tracking-wide" style={{ fontFamily: "'Noto Serif SC', serif" }}>{currentName.storyEn}</p>
                     </div>
-                    <div className={`w-[65px] backdrop-blur-md bg-stone-950/40 border border-white/5 rounded-xl shadow-xl flex-shrink-0 flex items-center justify-center overflow-hidden opacity-85 hover:opacity-100 ${isGenerating ? 'opacity-0 translate-y-4' : 'opacity-100 translate-y-0'}`} style={{ transitionDelay: '400ms' }}><LogoTagStamp className="w-full h-full p-2" /></div>
+                    <div className={`w-[60px] backdrop-blur-md bg-stone-950/40 border border-white/5 rounded-xl shadow-xl flex-shrink-0 flex items-center justify-center overflow-hidden opacity-85 hover:opacity-100 ${isGenerating ? 'opacity-0 translate-y-4' : 'opacity-100 translate-y-0'}`} style={{ transitionDelay: '400ms' }}><LogoTagStamp className="w-full h-full p-2" /></div>
                   </div>
-                  <div className="w-full text-center opacity-60"><p className="text-[7px] text-white/60 tracking-[0.25em] font-light uppercase">— YURAN YUXIAN • EXCLUSIVE CUSTOM —</p></div>
+                  <div className="w-full text-center opacity-60"><p className="text-[6px] text-white/60 tracking-[0.25em] font-light uppercase">— YURAN YUXIAN • EXCLUSIVE CUSTOM —</p></div>
                 </div>
               </div>
             </section>
 
-            <footer className="w-full grid grid-cols-12 gap-1.5 mt-0.5 shrink-0 px-1">
-              <button onClick={regenerate} disabled={isGenerating} className="col-span-3 flex flex-col items-center justify-center gap-0.5 py-2 rounded-xl bg-white border border-stone-300 text-stone-700 text-[9px] font-medium tracking-wider uppercase shadow-sm active:scale-[0.98] disabled:opacity-50"><RefreshCw size={14} className={`text-amber-700 ${isGenerating ? 'animate-spin' : ''}`} />REGENERATE</button>
-              <button onClick={() => setShowCheckout(true)} disabled={isGenerating} className="col-span-6 flex flex-col items-center justify-center gap-0.5 py-2 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 text-stone-950 text-[10px] font-bold tracking-widest uppercase shadow-lg active:scale-[0.98] hover:brightness-105 border border-amber-600/50 disabled:opacity-80"><Crown size={14} className="text-white animate-pulse" />UNLOCK PREMIUM</button>
-              <button onClick={handleDownloadClick} disabled={isGenerating} className="col-span-3 flex flex-col items-center justify-center gap-0.5 py-2 rounded-xl bg-[#3A352E] text-[#EAE5DA] text-[9px] font-medium tracking-wider uppercase shadow-md active:scale-[0.98] disabled:opacity-50"><Download size={14} className="text-amber-500" />SAVE ART</button>
+            <footer className="w-full grid grid-cols-12 gap-1.5 shrink-0 px-1 mb-1.5">
+              <button onClick={regenerate} disabled={isGenerating} className="col-span-3 flex flex-col items-center justify-center gap-0.5 py-2 rounded-xl bg-white border border-stone-300 text-stone-700 text-[8px] font-medium tracking-wider uppercase shadow-sm active:scale-[0.98] disabled:opacity-50"><RefreshCw size={12} className={`text-amber-700 ${isGenerating ? 'animate-spin' : ''}`} />REGENERATE</button>
+              <button onClick={() => setShowCheckout(true)} disabled={isGenerating} className="col-span-6 flex flex-col items-center justify-center gap-0.5 py-2 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 text-stone-950 text-[9px] font-bold tracking-widest uppercase shadow-lg active:scale-[0.98] hover:brightness-105 border border-amber-600/50 disabled:opacity-80"><Crown size={12} className="text-white animate-pulse" />UNLOCK PREMIUM</button>
+              <button onClick={handleDownloadClick} disabled={isGenerating} className="col-span-3 flex flex-col items-center justify-center gap-0.5 py-2 rounded-xl bg-[#3A352E] text-[#EAE5DA] text-[8px] font-medium tracking-wider uppercase shadow-md active:scale-[0.98] disabled:opacity-50"><Download size={12} className="text-amber-500" />SAVE ART</button>
             </footer>
 
-            <div className="w-full h-[45px] mt-1.5 rounded-lg border border-stone-300/80 border-dashed bg-black/5 flex items-center justify-center shrink-0 mx-1">
-               <span className="text-[9px] text-stone-500 tracking-widest uppercase">ADVERTISEMENT SPACE</span>
+            <div className="w-full h-[40px] rounded-lg border border-stone-300/80 border-dashed bg-black/5 flex items-center justify-center shrink-0 mx-1">
+               <span className="text-[8px] text-stone-500 tracking-widest uppercase">ADVERTISEMENT SPACE</span>
             </div>
           </>
         ) : (
           <>
             <div className="w-full flex flex-col items-center flex-1 overflow-y-auto hide-scrollbar pb-6 pt-2 relative">
               
-              {/* Header section */}
               <div className="flex flex-col items-center mb-6 w-full px-2 shrink-0">
                 <h2 className="text-[10px] tracking-[0.25em] font-bold text-stone-800 uppercase mb-4 text-center mt-1">
                   Aesthetic Traditional Name
@@ -327,14 +348,12 @@ export default function App() {
                 <p className="text-[10px] text-stone-500">Swipe to explore premium deliverables.</p>
               </div>
 
-              {/* Scroll Dots Indicator */}
               <div className="flex justify-center gap-1.5 mb-5 shrink-0">
                 {[1, 2, 3].map(dot => (
                   <div key={dot} className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${activeTier === dot ? 'bg-stone-800' : 'bg-stone-300'}`} />
                 ))}
               </div>
 
-              {/* Tiers Swipe Container */}
               <div className="w-full relative shrink-0">
                 <div className="swipe-container hide-scrollbar w-full items-center" onScroll={handleScroll}>
                   
@@ -342,9 +361,7 @@ export default function App() {
                   <div className="w-full min-w-full flex-shrink-0 snap-center px-4 flex justify-center">
                     <div className="w-full max-w-[280px] bg-[#FDFBF7] rounded-[24px] p-5 shadow-[0_8px_30px_rgb(0,0,0,0.06)] border border-stone-200 flex flex-col relative">
                       
-                      {/* Simulated Images Area */}
                       <div className="flex gap-4 items-end justify-center mb-6 mt-4 h-[140px]">
-                        {/* CLEAN ART Mockup */}
                         <div className="flex flex-col items-center gap-2">
                           <div className="w-[70px] aspect-square rounded-lg overflow-hidden relative shadow-sm border border-stone-200/50">
                             <img src={cfg.image} className="absolute inset-0 w-full h-full object-cover opacity-80" alt="Scenery" />
@@ -354,7 +371,6 @@ export default function App() {
                           </div>
                           <span className="text-[6px] text-stone-400 uppercase tracking-widest font-medium">Clean Art</span>
                         </div>
-                        {/* WALLPAPER Mockup */}
                         <div className="flex flex-col items-center gap-2">
                           <div className="w-[70px] aspect-[9/19] rounded-[10px] bg-stone-50 border border-stone-200 shadow-md flex flex-col items-center justify-center p-2 text-center relative overflow-hidden">
                               <span className="text-stone-800 text-[16px] font-bold mb-2 tracking-widest whitespace-nowrap" style={{ fontFamily: font.font }}>{displayName}</span>
@@ -389,9 +405,7 @@ export default function App() {
                     <div className="w-full max-w-[280px] bg-[#1A1816] rounded-[24px] p-5 shadow-2xl border border-stone-800 flex flex-col relative">
                       <div className="absolute top-0 right-4 bg-[#F5A623] text-[#1A1816] text-[8px] font-bold px-2 py-1 rounded-b-md tracking-widest uppercase">Most Popular</div>
                       
-                      {/* Simulated Images Area */}
                       <div className="flex gap-4 items-center justify-center mb-6 mt-4 h-[140px]">
-                        {/* GALLERY ART Mockup */}
                         <div className="flex flex-col items-center gap-2">
                           <div className="w-[65px] aspect-[3/4] bg-white rounded-sm shadow-md flex flex-col items-center justify-center p-2 border border-stone-200 relative overflow-hidden">
                               <span className="text-stone-900 text-[16px] font-bold mb-2 tracking-widest mt-2 whitespace-nowrap" style={{ fontFamily: font.font }}>{displayName}</span>
@@ -399,7 +413,6 @@ export default function App() {
                           </div>
                           <span className="text-[6px] text-stone-400 uppercase tracking-widest font-medium">Gallery Art</span>
                         </div>
-                        {/* TATটুকু STENCIL Mockup */}
                         <div className="flex flex-col items-center gap-2">
                           <div className="w-[85px] h-[85px] rounded-lg border border-stone-700 bg-[#2A2826] overflow-hidden relative shadow-inner flex items-center justify-center">
                             <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'linear-gradient(45deg, #444 25%, transparent 25%), linear-gradient(-45deg, #444 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #444 75%), linear-gradient(-45deg, transparent 75%, #444 75%)', backgroundSize: '8px 8px', backgroundPosition: '0 0, 0 4px, 4px -4px, -4px 0px' }}></div>
@@ -434,19 +447,15 @@ export default function App() {
                   <div className="w-full min-w-full flex-shrink-0 snap-center px-4 flex justify-center">
                     <div className="w-full max-w-[280px] bg-[#FDFBF7] rounded-[24px] p-5 shadow-[0_8px_30px_rgb(0,0,0,0.06)] border border-stone-200 flex flex-col relative">
                       
-                      {/* Simulated Images Area */}
                       <div className="flex flex-col items-center justify-center mb-6 mt-4 h-[140px]">
-                        {/* BOOKLET Mockup */}
                         <div className="w-[180px] aspect-[4/3] bg-white rounded-sm shadow-md flex border border-stone-200/50 overflow-hidden relative">
                           <div className="absolute inset-y-0 left-1/2 w-[2px] bg-gradient-to-r from-stone-200 via-stone-100 to-transparent -translate-x-1/2 z-10 shadow-[-2px_0_4px_rgba(0,0,0,0.05)]"></div>
-                          {/* Left Page */}
                           <div className="w-1/2 h-full px-3 py-4 flex flex-col justify-start border-r border-stone-100 bg-white overflow-hidden">
                               <span className="text-[4px] text-stone-400 uppercase tracking-widest mb-1.5 font-bold">Chapter I. Origin</span>
                               <span className="text-stone-800 text-[18px] font-bold mb-1 tracking-widest whitespace-nowrap" style={{ fontFamily: font.font }}>{displayName}</span>
                               <span className="text-[5px] text-stone-500 uppercase tracking-widest mb-3">{currentName.pinyin}</span>
                               <div className="text-[3px] text-stone-600 leading-[1.6]">Elements: Water & Earth.<br/>Philosophy: Wabi-Sabi.</div>
                           </div>
-                          {/* Right Page */}
                           <div className="w-1/2 h-full px-3 py-4 flex flex-col justify-start bg-[#FAF9F6] relative">
                               <span className="text-[4px] text-[#b22222] uppercase tracking-widest mb-2 font-bold text-right w-full">Chapter II. Poetry</span>
                               <div className="text-[6px] text-stone-800 leading-loose font-medium mb-1.5 pt-1" style={{ fontFamily: "'Noto Serif TC', serif" }}>
@@ -501,7 +510,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Bottom Footer Details with IP ID */}
               <div className="mt-8 mb-4 flex flex-col items-center text-stone-400 space-y-2 shrink-0">
                 <div className="text-[9px] font-mono tracking-widest opacity-60 uppercase">{uniqueIpId}</div>
                 <div className="flex flex-col items-center gap-0.5">
