@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Volume2, RefreshCw, Download, Crown, ArrowLeft, Check, CreditCard, Image as ImageIcon, Smartphone, Palette, BookOpen } from 'lucide-react';
-import { nameDatabase } from './names.ts';
+// 修改後（請直接複製這兩行，取代原本的第 2 行與第 3 行）：
+import { Volume2, RefreshCw, Download, Crown, ArrowLeft, Check, CreditCard, Palette, BookOpen } from 'lucide-react';
+import { nameDatabase } from './names';
 import { useImageDownloader } from './hooks/useImageDownloader';
 import WallpaperPreview from './components/WallpaperPreview';
 import GalleryArtPreview from './components/GalleryArtPreview';
