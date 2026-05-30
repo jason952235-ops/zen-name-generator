@@ -1,11 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { Volume2, RefreshCw, Download, Crown, ArrowLeft, Check, CreditCard, Palette, BookOpen } from 'lucide-react';
+import { Volume2, RefreshCw, Download, Crown, ArrowLeft, Check, CreditCard, BookOpen } from 'lucide-react';
 import { nameDatabase } from './names';
 import { useImageDownloader } from './hooks/useImageDownloader';
-import WallpaperPreview from './components/WallpaperPreview';
-import GalleryArtPreview from './components/GalleryArtPreview';
-import StencilPreview from './components/StencilPreview';
-import BookletPreview from './components/BookletPreview';
 
 const hideScrollbarStyle = `
   .hide-scrollbar::-webkit-scrollbar { display: none !important; width: 0 !important; height: 0 !important; }
@@ -105,9 +101,6 @@ export default function App() {
   
   const [activeTier, setActiveTier] = useState<number>(1);
   const [isMintingPDF, setIsMintingPDF] = useState(false); 
-  
-  const [showRedeem, setShowRedeem] = useState(false);
-  const [orderId, setOrderId] = useState('');
   
   const [toastMessage, setToastMessage] = useState<string>('');
 
@@ -406,7 +399,7 @@ export default function App() {
                           </div>
                           <span className="text-[6px] text-stone-400 uppercase tracking-widest font-medium">Gallery Art</span>
                         </div>
-                        {/* TATTOO STENCIL Mockup */}
+                        {/* TATটুকু STENCIL Mockup */}
                         <div className="flex flex-col items-center gap-2">
                           <div className="w-[85px] h-[85px] rounded-lg border border-stone-700 bg-[#2A2826] overflow-hidden relative shadow-inner flex items-center justify-center">
                             <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'linear-gradient(45deg, #444 25%, transparent 25%), linear-gradient(-45deg, #444 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #444 75%), linear-gradient(-45deg, transparent 75%, #444 75%)', backgroundSize: '8px 8px', backgroundPosition: '0 0, 0 4px, 4px -4px, -4px 0px' }}></div>
@@ -446,7 +439,7 @@ export default function App() {
                         {/* BOOKLET Mockup */}
                         <div className="w-[180px] aspect-[4/3] bg-white rounded-sm shadow-md flex border border-stone-200/50 overflow-hidden relative">
                           <div className="absolute inset-y-0 left-1/2 w-[2px] bg-gradient-to-r from-stone-200 via-stone-100 to-transparent -translate-x-1/2 z-10 shadow-[-2px_0_4px_rgba(0,0,0,0.05)]"></div>
-                          {/* Left Page (修正為單行不換行) */}
+                          {/* Left Page */}
                           <div className="w-1/2 h-full px-3 py-4 flex flex-col justify-start border-r border-stone-100 bg-white overflow-hidden">
                               <span className="text-[4px] text-stone-400 uppercase tracking-widest mb-1.5 font-bold">Chapter I. Origin</span>
                               <span className="text-stone-800 text-[18px] font-bold mb-1 tracking-widest whitespace-nowrap" style={{ fontFamily: font.font }}>{displayName}</span>
@@ -461,7 +454,6 @@ export default function App() {
                               </div>
                               <div className="text-[3.5px] text-stone-500 leading-tight">Wind sweeps the bamboo...</div>
                               
-                              {/* 替換為 LOGO.jpg，使用 mix-blend-multiply 將白底去背完美融合 */}
                               <div className="absolute bottom-2 right-2 w-[22px] h-[22px] opacity-50 pointer-events-none mix-blend-multiply">
                                 <SafeImage src="/LOGO.jpg" alt="Logo Stamp" className="w-full h-full object-contain mix-blend-multiply" fallback={<TraditionalSealFallback size="w-full h-full" />} />
                               </div>
@@ -495,7 +487,6 @@ export default function App() {
                         <div className="mt-3 text-center">
                           <button 
                             onClick={() => {
-                              setShowRedeem(true);
                               showToast('Redeem function ready.');
                             }} 
                             className="text-[8px] text-stone-400 hover:text-stone-600 tracking-widest underline underline-offset-4 uppercase transition-colors"
