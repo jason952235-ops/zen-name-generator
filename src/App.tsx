@@ -1,5 +1,4 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-// 修改後（請直接複製這兩行，取代原本的第 2 行與第 3 行）：
 import { Volume2, RefreshCw, Download, Crown, ArrowLeft, Check, CreditCard, Palette, BookOpen } from 'lucide-react';
 import { nameDatabase } from './names';
 import { useImageDownloader } from './hooks/useImageDownloader';
@@ -200,7 +199,6 @@ export default function App() {
   const font = fontStyles[fontStyle];
   const displayName = isSimp ? currentName.nameCn : currentName.nameTw;
   const uniqueIpId = `IP ID: YR-${Math.floor(10000 + Math.random() * 90000)}`;
-
   return (
     <>
       <style>{hideScrollbarStyle}</style>
@@ -336,7 +334,6 @@ export default function App() {
               <div className={`w-2 h-2 rounded-full transition-all duration-300 ${activeTier === 3 ? 'bg-stone-800 scale-125' : 'bg-stone-300'}`} />
             </div>
 
-            {/* 修正滑动容器：使用 swipe-container class 并加上强制内联样式 */}
             <div 
               className="w-full flex overflow-x-auto snap-x snap-mandatory hide-scrollbar gap-4 pb-4 swipe-container"
               style={{ 
