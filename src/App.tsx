@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Volume2, RefreshCw, Download, Crown, ArrowLeft, Check, CreditCard, BookOpen } from 'lucide-react';
 import { nameDatabase } from './names';
+import { useImageDownloader } from './hooks/useImageDownloader';
 
 const hideScrollbarStyle = `
   .hide-scrollbar::-webkit-scrollbar { display: none !important; width: 0 !important; height: 0 !important; }
@@ -133,7 +134,6 @@ export default function App() {
   const switchScenery = (s: SceneryType) => { setActiveScenery(s); triggerGeneration(() => setCurrentName(pickName(s, genderFilter))); };
   const switchGender = (g: GenderType) => { setGenderFilter(g); triggerGeneration(() => setCurrentName(pickName(activeScenery, g))); };
 
-  // 徹底修正的下載功能：動態載入 html2canvas 確保不會報錯
   const handleDownloadClick = () => {
     if (isGenerating || !cardRef.current) return;
     setShowQR(true);
@@ -196,7 +196,7 @@ export default function App() {
         })
       });
       if (!response.ok) throw new Error('API 回應失敗');
-      const aiData = await response.json();
+      await response.json(); // 已修正：僅讀取但不宣告變數
       showToast('AI 生成成功！準備連接 PDF 引擎。');
     } catch (error) {
       showToast('API 呼叫失敗，請確定已經執行 vercel dev。');
@@ -229,7 +229,6 @@ export default function App() {
             </header>
 
             <section className="w-full flex items-stretch gap-2 shrink-0 px-1 mb-2">
-              {/* 縮小 LOGO 佔比，給予畫面呼吸感 */}
               <div className="w-[20%] relative flex flex-col items-center justify-center p-1.5 overflow-hidden bg-stone-900/5 rounded-xl border border-stone-800/10 shadow-inner">
                 <SafeImage src="/LOGO.png" alt="Yuran Yuxian" className="w-full h-full max-h-[80px] object-contain mix-blend-multiply" fallback={<div className="py-2 flex flex-col items-center justify-center h-full"><h1 className="text-sm font-semibold tracking-widest text-stone-800 font-serif" style={{ writingMode: 'vertical-rl', textOrientation: 'upright' }}>悠然餘閒</h1></div>} />
               </div>
@@ -282,7 +281,6 @@ export default function App() {
               </div>
             </section>
 
-            {/* 修改為主卡片 flex-1 動態填滿，不再因固定比例被切掉 */}
             <section className="w-full flex-1 min-h-0 shrink-1 px-1 mb-2 flex flex-col">
               <div ref={cardRef} className="relative w-full h-full rounded-xl overflow-hidden shadow-xl bg-stone-950 border border-stone-800/50 flex flex-col justify-between p-4">
                 <img src={cfg.image} alt={cfg.labelEn} className="absolute inset-0 w-full h-full object-cover opacity-60" />
