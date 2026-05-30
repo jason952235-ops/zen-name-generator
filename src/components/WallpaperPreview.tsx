@@ -1,4 +1,4 @@
-import React from 'react';
+
 
 interface WallpaperProps {
   chineseName?: string;

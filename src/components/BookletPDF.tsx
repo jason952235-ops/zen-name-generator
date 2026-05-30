@@ -1,5 +1,4 @@
-import React from 'react';
-import { Document, Page, Text, View, StyleSheet, Font, Image } from '@react-pdf/renderer';
+import { Document, Page, Text, View, StyleSheet, Font, } from '@react-pdf/renderer';
 
 // ==========================================
 // 1. 註冊字體 (PDF 必須明確載入字體檔才能顯示中文)
