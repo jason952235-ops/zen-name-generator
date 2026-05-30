@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { Volume2, RefreshCw, Download, Crown, ArrowLeft, Check, CreditCard, Palette, BookOpen } from 'lucide-react';
 import { nameDatabase } from './names';
 import { useImageDownloader } from './hooks/useImageDownloader';
@@ -8,20 +8,14 @@ import StencilPreview from './components/StencilPreview';
 import BookletPreview from './components/BookletPreview';
 
 const hideScrollbarStyle = `
-  .hide-scrollbar::-webkit-scrollbar { display: none; }
-  .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-  /* 强化移动端滑动体验 */
+  .hide-scrollbar::-webkit-scrollbar { display: none !important; width: 0 !important; height: 0 !important; }
+  .hide-scrollbar { -ms-overflow-style: none !important; scrollbar-width: none !important; }
   .swipe-container {
     display: flex;
     overflow-x: auto;
     scroll-snap-type: x mandatory;
     -webkit-overflow-scrolling: touch;
     scroll-behavior: smooth;
-    overscroll-behavior-x: contain;
-  }
-  .swipe-container > * {
-    scroll-snap-align: center;
-    flex-shrink: 0;
   }
 `;
 
@@ -60,7 +54,7 @@ const fontStyles: Record<string, { font: string; label: string; labelEn: string 
   scholar: { font: "'ZCOOL XiaoWei', 'Noto Serif TC', 'PMingLiU', serif", label: '行楷', labelEn: 'Scholar' }
 };
 
-const TraditionalSealFallback: React.FC<{ size?: string }> = ({ size = "w-[70px] h-[70px]" }) => (
+const TraditionalSealFallback = ({ size = "w-[70px] h-[70px]" }: { size?: string }) => (
   <div className={`border-[3px] border-[#b22222] p-0.5 flex flex-wrap justify-center items-center text-[#b22222] bg-[#FDFBF7] select-none rounded-[3px] shadow-[inset_0_0_8px_rgba(178,34,34,0.15),0_2px_6px_rgba(0,0,0,0.15)] ${size}`}>
     <div className="w-1/2 h-1/2 flex items-center justify-center font-bold text-[14px] border-[0.5px] border-[#b22222]/10" style={{ fontFamily: "'Ma Shan Zheng', cursive" }}>餘</div>
     <div className="w-1/2 h-1/2 flex items-center justify-center font-bold text-[14px] border-[0.5px] border-[#b22222]/10" style={{ fontFamily: "'Ma Shan Zheng', cursive" }}>悠</div>
@@ -69,20 +63,20 @@ const TraditionalSealFallback: React.FC<{ size?: string }> = ({ size = "w-[70px]
   </div>
 );
 
-const SafeImage: React.FC<React.ImgHTMLAttributes<HTMLImageElement> & { fallback: React.ReactNode }> = ({ src, alt, fallback, className, ...props }) => {
+const SafeImage = ({ src, alt, fallback, className, ...props }: React.ImgHTMLAttributes<HTMLImageElement> & { fallback: React.ReactNode }) => {
   const [error, setError] = useState(false);
   if (error) return <>{fallback}</>;
   return <img src={src} alt={alt} onError={() => setError(true)} className={className} {...props} />;
 };
 
-const LogoTagStamp: React.FC<{ className?: string }> = ({ className = "" }) => (
+const LogoTagStamp = ({ className = "" }: { className?: string }) => (
   <div className={`relative flex items-center justify-center overflow-hidden transition-all duration-300 ${className}`}>
     <div className="absolute inset-0 bg-amber-50/10 rounded-full blur-md"></div>
     <SafeImage src="/LOGO.jpg" alt="悠然餘閒" className="w-full h-full object-contain relative z-10 drop-shadow-[0_2px_4px_rgba(0,0,0,0.6)]" style={{ filter: 'brightness(1.1) contrast(1.1)' }} fallback={<TraditionalSealFallback size="w-full h-full max-w-[66px] max-h-[66px]" />} />
   </div>
 );
 
-const RitualLoader: React.FC<{ isGenerating: boolean }> = ({ isGenerating }) => (
+const RitualLoader = ({ isGenerating }: { isGenerating: boolean }) => (
   <div className={`absolute inset-0 z-40 flex flex-col items-center justify-center bg-stone-950/95 backdrop-blur-md transition-all duration-1000 ease-in-out ${isGenerating ? 'opacity-100 visible' : 'opacity-0 invisible pointer-events-none'}`}>
     <div className="absolute w-48 h-48 bg-amber-600/10 rounded-full blur-3xl animate-pulse"></div>
     <div className="relative z-10 flex flex-col items-center animate-[pulse_2.5s_ease-in-out_infinite]">
@@ -116,6 +110,9 @@ export default function App() {
   const [orderId, setOrderId] = useState('');
   
   const [toastMessage, setToastMessage] = useState<string>('');
+
+  // 產生唯一的 IP ID，僅在元件初次載入時生成一次
+  const [uniqueIpId] = useState(`IP ID: YR-${Math.floor(10000 + Math.random() * 90000)}`);
 
   const cardRef = useRef<HTMLDivElement>(null);
   const { downloadCard } = useImageDownloader();
@@ -198,7 +195,7 @@ export default function App() {
   const cfg = sceneryConfig[activeScenery];
   const font = fontStyles[fontStyle];
   const displayName = isSimp ? currentName.nameCn : currentName.nameTw;
-  const uniqueIpId = `IP ID: YR-${Math.floor(10000 + Math.random() * 90000)}`;
+
   return (
     <>
       <style>{hideScrollbarStyle}</style>
@@ -209,18 +206,17 @@ export default function App() {
         </div>
       </div>
 
-      <div className="min-h-[100dvh] h-[100dvh] overflow-y-auto bg-[#EAE5DA] text-[#3A352E] font-sans flex flex-col items-center justify-between p-2 sm:p-3 select-none pb-4 sm:pb-6 relative">
-
-        <header className="text-center w-full max-w-md mt-1 flex flex-col items-center shrink-0">
-          <p className="text-sm sm:text-base tracking-[0.25em] sm:tracking-[0.35em] text-stone-900 font-bold uppercase mb-1 whitespace-nowrap">
-            Aesthetic Traditional Name
-          </p>
-        </header>
-
+      <div className="mx-auto max-w-[400px] min-h-[100dvh] h-[100dvh] overflow-hidden bg-[#EAE5DA] text-[#3A352E] font-sans flex flex-col items-center justify-between p-2 sm:p-3 select-none pb-4 relative shadow-[0_0_50px_rgba(0,0,0,0.1)]">
         {!showCheckout ? (
           <>
-            <section className="w-full max-w-[300px] xs:max-w-[325px] sm:max-w-[340px] flex items-stretch gap-2 sm:gap-3 my-1 shrink-0">
-              <div className="w-[30%] sm:w-[32%] relative flex flex-col items-center justify-center p-1 overflow-hidden bg-stone-900/5 rounded-xl border border-stone-800/10 shadow-inner">
+            <header className="text-center w-full mt-1 flex flex-col items-center shrink-0">
+              <p className="text-sm tracking-[0.25em] text-stone-900 font-bold uppercase mb-1 whitespace-nowrap">
+                Aesthetic Traditional Name
+              </p>
+            </header>
+
+            <section className="w-full flex items-stretch gap-2 my-1 shrink-0 px-1">
+              <div className="w-[30%] relative flex flex-col items-center justify-center p-1 overflow-hidden bg-stone-900/5 rounded-xl border border-stone-800/10 shadow-inner">
                 <SafeImage src="/LOGO.png" alt="Yuran Yuxian" className="w-full h-full max-h-[160px] object-contain mix-blend-multiply scale-[1.5] transform transition-transform" fallback={<div className="py-2 flex flex-col items-center justify-center h-full"><h1 className="text-lg font-semibold tracking-widest text-stone-800 font-serif" style={{ writingMode: 'vertical-rl', textOrientation: 'upright' }}>悠然餘閒</h1></div>} />
               </div>
               <div className="flex-1 flex flex-col justify-between gap-1.5">
@@ -272,12 +268,12 @@ export default function App() {
               </div>
             </section>
 
-            <section className="w-full max-w-[300px] xs:max-w-[325px] sm:max-w-[340px] my-1 shrink-0">
-              <div ref={cardRef} className="relative w-full aspect-[4/5] rounded-xl overflow-hidden shadow-xl bg-stone-950 border border-stone-800/50 flex flex-col justify-between p-4 sm:p-5">
+            <section className="w-full my-1 shrink-0 px-1">
+              <div ref={cardRef} className="relative w-full aspect-[4/5] rounded-xl overflow-hidden shadow-xl bg-stone-950 border border-stone-800/50 flex flex-col justify-between p-4">
                 <img src={cfg.image} alt={cfg.labelEn} className="absolute inset-0 w-full h-full object-cover opacity-60" />
                 <div className={`absolute inset-0 bg-gradient-to-b ${cfg.color} via-stone-950/40 to-stone-950/95`} />
                 <div className={`absolute top-5 right-5 z-20 w-12 h-12 bg-white/95 p-1 rounded-md shadow-lg transition-opacity duration-200 ${showQR ? 'opacity-85' : 'opacity-0 pointer-events-none'}`}><img src="/qrcode.png" alt="QR" className="w-full h-full object-contain" /></div>
-                <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none overflow-hidden"><p className="text-white/10 text-2xl sm:text-3xl font-black uppercase tracking-[0.3em] whitespace-nowrap -rotate-12 select-none drop-shadow-md" style={{ fontFamily: "'Noto Serif', serif" }}>ZEN AESTHETIC NAMING</p></div>
+                <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none overflow-hidden"><p className="text-white/10 text-2xl font-black uppercase tracking-[0.3em] whitespace-nowrap -rotate-12 select-none drop-shadow-md" style={{ fontFamily: "'Noto Serif', serif" }}>ZEN AESTHETIC NAMING</p></div>
                 <RitualLoader isGenerating={isGenerating} />
                 <div className="w-full flex justify-between items-start z-10">
                   <div data-html2canvas-ignore="true" className="bg-stone-950/30 backdrop-blur-md border border-white/10 rounded-full p-0.5 flex text-[9px] shadow-sm tracking-wider uppercase">
@@ -287,246 +283,244 @@ export default function App() {
                   <span className="text-white/30 text-[8px] tracking-widest uppercase pt-1">{cfg.labelEn} Concept</span>
                 </div>
                 <div className={`relative flex flex-col items-center justify-center z-10 my-auto transition-all duration-1000 delay-100 ${isGenerating ? 'opacity-0 scale-95 blur-md' : 'opacity-100 scale-100 blur-0'}`}>
-                  <p className="leading-none text-5xl sm:text-6xl tracking-[0.15em] pl-[0.15em] drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)] text-amber-50 whitespace-nowrap break-keep" style={{ fontFamily: font.font, wordBreak: 'keep-all' }}>{displayName}</p>
-                  <p className="mt-4 text-amber-100/70 text-xs sm:text-sm tracking-[0.4em] font-light uppercase drop-shadow-md" style={{ fontFamily: "'Noto Serif', serif" }}>{currentName.pinyin}</p>
+                  <p className="leading-none text-5xl tracking-[0.15em] pl-[0.15em] drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)] text-amber-50 whitespace-nowrap break-keep" style={{ fontFamily: font.font, wordBreak: 'keep-all' }}>{displayName}</p>
+                  <p className="mt-4 text-amber-100/70 text-xs tracking-[0.4em] font-light uppercase drop-shadow-md" style={{ fontFamily: "'Noto Serif', serif" }}>{currentName.pinyin}</p>
                 </div>
                 <div className="w-full z-10 flex flex-col gap-3 relative">
                   <div className={`flex justify-center transition-all duration-700 delay-200 ${isGenerating ? 'opacity-0 translate-y-4' : 'opacity-100 translate-y-0'}`}>
-                     <button data-html2canvas-ignore="true" onClick={speak} className="flex items-center gap-2 bg-amber-600/80 backdrop-blur-md hover:bg-amber-500 text-white px-6 py-2.5 sm:px-4 sm:py-1.5 rounded-full shadow-lg transition-transform active:scale-[0.95]"><Volume2 size={16} /><span className="text-[10px] sm:text-[9px] font-medium tracking-wider uppercase">PRONUNCIATION</span></button>
+                     <button data-html2canvas-ignore="true" onClick={speak} className="flex items-center gap-2 bg-amber-600/80 backdrop-blur-md hover:bg-amber-500 text-white px-6 py-2.5 rounded-full shadow-lg transition-transform active:scale-[0.95]"><Volume2 size={16} /><span className="text-[10px] font-medium tracking-wider uppercase">PRONUNCIATION</span></button>
                   </div>
                   <div className="w-full flex items-stretch gap-2 transition-all duration-700 delay-300">
                     <div className={`flex-1 backdrop-blur-md bg-stone-950/60 border border-white/5 rounded-xl p-3 shadow-xl flex flex-col justify-center relative min-h-[75px] ${isGenerating ? 'opacity-0 translate-y-4' : 'opacity-100 translate-y-0'}`}>
                       <p className="text-amber-500 text-[8px] tracking-[0.25em] uppercase mb-1 font-medium">AESTHETIC CONCEPT</p>
                       <p className="text-stone-200 text-[10px] leading-relaxed font-light tracking-wide" style={{ fontFamily: "'Noto Serif SC', serif" }}>{currentName.storyEn}</p>
                     </div>
-                    <div className={`w-[65px] sm:w-[75px] backdrop-blur-md bg-stone-950/40 border border-white/5 rounded-xl shadow-xl flex-shrink-0 flex items-center justify-center overflow-hidden opacity-85 hover:opacity-100 ${isGenerating ? 'opacity-0 translate-y-4' : 'opacity-100 translate-y-0'}`} style={{ transitionDelay: '400ms' }}><LogoTagStamp className="w-full h-full p-2" /></div>
+                    <div className={`w-[65px] backdrop-blur-md bg-stone-950/40 border border-white/5 rounded-xl shadow-xl flex-shrink-0 flex items-center justify-center overflow-hidden opacity-85 hover:opacity-100 ${isGenerating ? 'opacity-0 translate-y-4' : 'opacity-100 translate-y-0'}`} style={{ transitionDelay: '400ms' }}><LogoTagStamp className="w-full h-full p-2" /></div>
                   </div>
                   <div className="w-full text-center opacity-60"><p className="text-[7px] text-white/60 tracking-[0.25em] font-light uppercase">— YURAN YUXIAN • EXCLUSIVE CUSTOM —</p></div>
                 </div>
               </div>
             </section>
 
-            <footer className="w-full max-w-[300px] xs:max-w-[325px] sm:max-w-[340px] grid grid-cols-12 gap-1.5 mt-0.5 shrink-0">
+            <footer className="w-full grid grid-cols-12 gap-1.5 mt-0.5 shrink-0 px-1">
               <button onClick={regenerate} disabled={isGenerating} className="col-span-3 flex flex-col items-center justify-center gap-0.5 py-2 rounded-xl bg-white border border-stone-300 text-stone-700 text-[9px] font-medium tracking-wider uppercase shadow-sm active:scale-[0.98] disabled:opacity-50"><RefreshCw size={14} className={`text-amber-700 ${isGenerating ? 'animate-spin' : ''}`} />REGENERATE</button>
               <button onClick={() => setShowCheckout(true)} disabled={isGenerating} className="col-span-6 flex flex-col items-center justify-center gap-0.5 py-2 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 text-stone-950 text-[10px] font-bold tracking-widest uppercase shadow-lg active:scale-[0.98] hover:brightness-105 border border-amber-600/50 disabled:opacity-80"><Crown size={14} className="text-white animate-pulse" />UNLOCK PREMIUM</button>
               <button onClick={handleDownloadClick} disabled={isGenerating} className="col-span-3 flex flex-col items-center justify-center gap-0.5 py-2 rounded-xl bg-[#3A352E] text-[#EAE5DA] text-[9px] font-medium tracking-wider uppercase shadow-md active:scale-[0.98] disabled:opacity-50"><Download size={14} className="text-amber-500" />SAVE ART</button>
             </footer>
 
-            <div className="w-full max-w-[300px] xs:max-w-[325px] sm:max-w-[340px] h-[45px] sm:h-[50px] mt-1.5 rounded-lg border border-stone-300/80 border-dashed bg-black/5 flex items-center justify-center shrink-0">
+            <div className="w-full h-[45px] mt-1.5 rounded-lg border border-stone-300/80 border-dashed bg-black/5 flex items-center justify-center shrink-0 mx-1">
                <span className="text-[9px] text-stone-500 tracking-widest uppercase">ADVERTISEMENT SPACE</span>
             </div>
           </>
         ) : (
-          <section className="w-full max-w-[340px] sm:max-w-[380px] flex-1 flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-500 my-2">
-            
-            <button onClick={() => setShowCheckout(false)} className="self-start flex items-center gap-1 text-stone-500 hover:text-stone-800 text-xs mb-4 font-medium transition-colors">
-              <ArrowLeft size={14} /> Return to Meditation
-            </button>
-
-            <h2 className="text-2xl font-serif text-stone-900 mb-1 text-center">Unlock Your Destiny</h2>
-            <p className="text-xs text-stone-600 text-center mb-4 tracking-wide px-2">
-              Swipe to explore premium deliverables.
-            </p>
-
-            <div className="flex justify-center items-center gap-2 mb-4">
-              <div className={`w-2 h-2 rounded-full transition-all duration-300 ${activeTier === 1 ? 'bg-stone-800 scale-125' : 'bg-stone-300'}`} />
-              <div className={`w-2 h-2 rounded-full transition-all duration-300 ${activeTier === 2 ? 'bg-amber-500 scale-125' : 'bg-stone-300'}`} />
-              <div className={`w-2 h-2 rounded-full transition-all duration-300 ${activeTier === 3 ? 'bg-stone-800 scale-125' : 'bg-stone-300'}`} />
-            </div>
-
-            <div 
-              className="w-full flex overflow-x-auto snap-x snap-mandatory hide-scrollbar gap-4 pb-4 swipe-container"
-              style={{ 
-                WebkitOverflowScrolling: 'touch',
-                scrollSnapType: 'x mandatory',
-                overflowY: 'hidden'
-              }}
-              onScroll={handleScroll}
-            >
+          <>
+            <div className="w-full flex flex-col items-center flex-1 overflow-y-auto hide-scrollbar pb-6 pt-2 relative">
               
-              {/* 卡片 1：$1.99 */}
-              <div className="min-w-full snap-center flex flex-col bg-white rounded-3xl border border-stone-200 shadow-sm overflow-hidden relative">
-                <div className="bg-stone-100 py-6 px-4 flex justify-center items-end gap-5 border-b border-stone-200">
-                  <div className="flex flex-col items-center gap-2">
-                    <div className="relative w-[85px] aspect-[4/5] rounded-lg overflow-hidden shadow-sm border border-white bg-stone-900">
-                      <img src={cfg.image} alt="Bg" className="absolute inset-0 w-full h-full object-cover opacity-80" />
-                      <div className={`absolute inset-0 bg-gradient-to-b ${cfg.color} via-stone-950/40 to-stone-950/90`} />
-                      <div className="absolute inset-0 flex flex-col items-center justify-center">
-                        <p className="leading-none text-2xl tracking-[0.1em] drop-shadow-md text-amber-50 whitespace-nowrap break-keep" style={{ fontFamily: font.font, wordBreak: 'keep-all' }}>{displayName}</p>
-                      </div>
-                      <div className="absolute bottom-1 right-1 w-4 h-4 opacity-80">
-                        <SafeImage src="/LOGO.png" alt="Logo" fallback={<TraditionalSealFallback size="w-full h-full" />} className="w-full h-full object-contain" />
-                      </div>
-                    </div>
-                    <span className="text-[7px] text-stone-500 uppercase tracking-widest font-medium">Clean Art</span>
-                  </div>
-                  <div className="flex flex-col items-center gap-2">
-                    <div style={{ width: 390 * 0.25, height: 844 * 0.25 }} className="relative">
-                      <div className="absolute top-0 left-0 origin-top-left transform scale-[0.25] shadow-sm overflow-hidden rounded-[2.5rem] border-[4px] border-stone-800 pointer-events-none">
-                        <WallpaperPreview chineseName={displayName} englishDesc={currentName.storyEn} ipId={uniqueIpId} fontFamily={font.font} />
-                      </div>
-                    </div>
-                    <span className="text-[7px] text-stone-500 uppercase tracking-widest font-medium">Wallpaper</span>
-                  </div>
-                </div>
-                <div className="p-5 flex flex-col flex-1">
-                  <div className="flex justify-between items-start mb-3">
-                    <div>
-                      <h3 className="text-sm font-bold text-stone-900 uppercase tracking-widest">The Scroll</h3>
-                      <p className="text-[10px] text-stone-500 italic">Basic digital art set.</p>
-                    </div>
-                    <span className="text-lg font-serif font-bold text-stone-800">$1.99</span>
-                  </div>
-                  <ul className="text-[10px] text-stone-600 space-y-2 mb-6 flex-1">
-                    <li className="flex items-center gap-2"><Check size={14} className="text-green-600" /> High-Res Clean Artwork</li>
-                    <li className="flex items-center gap-2"><Check size={14} className="text-green-600" /> High-Res Mobile Wallpaper</li>
-                  </ul>
-                  <a 
-                    href={`https://jasonwave356.gumroad.com/l/zvhwrw?Aesthetic%20Name=${displayName}`} 
-                    data-gumroad-overlay-checkout="true"
-                    target="_blank" 
-                    rel="noopener noreferrer" 
-                    className="w-full py-3 rounded-xl bg-stone-900 text-white text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 hover:bg-stone-800 transition-colors shadow-md"
-                  >
-                    <CreditCard size={16} /> Unlock for $1.99
-                  </a>
-                </div>
-              </div>
-
-              {/* 卡片 2：$4.99 */}
-              <div className="min-w-full snap-center flex flex-col bg-stone-900 rounded-3xl border border-amber-500/40 shadow-xl overflow-hidden relative">
-                <div className="absolute top-0 right-0 bg-amber-500 text-stone-950 text-[8px] font-bold uppercase tracking-widest px-3 py-1 rounded-bl-lg z-10">Most Popular</div>
-                <div className="bg-stone-950/50 py-6 px-4 flex justify-center items-center gap-5 border-b border-stone-800">
-                  <div className="flex flex-col items-center gap-2">
-                    <div style={{ width: 280 * 0.35, height: 420 * 0.35 }} className="relative shadow-2xl">
-                      <div className="absolute top-0 left-0 origin-top-left transform scale-[0.35] pointer-events-none">
-                        <GalleryArtPreview chineseName={displayName} englishDesc={currentName.storyEn} fontFamily={font.font} />
-                      </div>
-                    </div>
-                    <span className="text-[7px] text-amber-200/70 uppercase tracking-widest font-medium">Gallery Art</span>
-                  </div>
-                  <div className="flex flex-col items-center gap-2">
-                    <div style={{ width: 280 * 0.35, height: 280 * 0.35 }} className="relative shadow-lg rounded-xl overflow-hidden border border-stone-700">
-                      <div className="absolute top-0 left-0 origin-top-left transform scale-[0.35] pointer-events-none">
-                        <StencilPreview chineseName={displayName} fontFamily={font.font} />
-                      </div>
-                    </div>
-                    <span className="text-[7px] text-amber-200/70 uppercase tracking-widest font-medium flex items-center gap-1"><Palette size={8}/> Tattoo Stencil</span>
-                  </div>
-                </div>
-                <div className="p-5 flex flex-col flex-1">
-                  <div className="flex justify-between items-start mb-3">
-                    <div>
-                      <h3 className="text-sm font-bold text-amber-400 uppercase tracking-widest flex items-center gap-1"><Crown size={14} /> The Awakening</h3>
-                      <p className="text-[10px] text-stone-400 italic mt-0.5">Physical & Creator upgrades.</p>
-                    </div>
-                    <span className="text-lg font-serif font-bold text-white">$4.99</span>
-                  </div>
-                  <ul className="text-[10px] text-stone-300 space-y-2 mb-6 flex-1">
-                    <li className="flex items-center gap-2 opacity-70"><Check size={14} className="text-amber-500" /> Includes $1.99 Scroll</li>
-                    <li className="flex items-start gap-2"><Check size={14} className="text-amber-400 shrink-0 mt-0.5" /> <span><strong className="text-amber-200">Tattoo Stencil:</strong> Transparent PNG.</span></li>
-                    <li className="flex items-start gap-2"><Check size={14} className="text-amber-400 shrink-0 mt-0.5" /> <span><strong className="text-amber-200">Gallery Art:</strong> Framing-ready PDF.</span></li>
-                  </ul>
-                  <a 
-                    href={`https://jasonwave356.gumroad.com/l/rzlgdp?Aesthetic%20Name=${displayName}`}
-                    data-gumroad-overlay-checkout="true"
-                    target="_blank" 
-                    rel="noopener noreferrer" 
-                    className="w-full py-3 rounded-xl bg-amber-500 text-stone-950 text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 hover:bg-amber-400 transition-colors shadow-md active:scale-[0.95]"
-                  >
-                    <CreditCard size={16} /> Unlock for $4.99
-                  </a>
-                </div>
-              </div>
-
-              {/* 卡片 3：$9.99 */}
-              <div className="min-w-full snap-center flex flex-col bg-[#FCFAF5] rounded-3xl border border-[#D9D0B8] shadow-md overflow-hidden relative">
+              {/* Header section */}
+              <div className="flex flex-col items-center mb-6 w-full px-2 shrink-0">
+                <h2 className="text-[10px] tracking-[0.25em] font-bold text-stone-800 uppercase mb-4 text-center mt-1">
+                  Aesthetic Traditional Name
+                </h2>
+                <button 
+                  onClick={() => setShowCheckout(false)} 
+                  className="text-[10px] text-stone-500 hover:text-stone-800 flex items-center gap-1 transition-colors mb-5 font-medium"
+                >
+                  <ArrowLeft size={12} /> Return to Meditation
+                </button>
                 
-                <div className="bg-[#F5F2EB] py-8 px-4 flex justify-center items-center border-b border-[#E8E5DD] relative overflow-hidden">
-                  <div className="absolute -right-4 -bottom-4 opacity-10">
-                    <img src="/LOGO.png" alt="Decoration" className="w-32 h-32 object-contain" />
-                  </div>
-                  <div className="flex flex-col items-center gap-2 z-10">
-                    <div style={{ width: 360 * 0.7, height: 240 * 0.7 }} className="relative shadow-xl">
-                      <div className="absolute top-0 left-0 origin-top-left transform scale-[0.7] pointer-events-none">
-                        <BookletPreview chineseName={displayName} pinyin={currentName.pinyin} fontFamily={font.font} />
-                      </div>
-                    </div>
-                    <span className="flex items-center gap-1 text-[7px] text-stone-600 uppercase tracking-[0.2em] font-bold text-center mt-2">
-                      <BookOpen size={10} /> Personal Zen Booklet (PDF)
-                    </span>
-                  </div>
-                </div>
+                <h1 className="text-2xl font-serif text-stone-800 mb-2 text-center" style={{ fontFamily: "'Noto Serif', serif" }}>
+                  Unlock Your Destiny
+                </h1>
+                <p className="text-[10px] text-stone-500">Swipe to explore premium deliverables.</p>
+              </div>
 
-                <div className="p-5 flex flex-col flex-1">
-                  <div className="flex justify-between items-start mb-3">
-                    <div>
-                      <h3 className="text-sm font-bold text-[#8A7356] uppercase tracking-widest flex items-center gap-1">
-                        The Enlightenment
-                      </h3>
-                      <p className="text-[10px] text-stone-500 italic mt-0.5">Ultimate Personal IP & Philosophy.</p>
-                    </div>
-                    <span className="text-lg font-serif font-bold text-stone-900">$9.99</span>
-                  </div>
-                  <ul className="text-[10px] text-stone-600 space-y-2 mb-6 flex-1">
-                    <li className="flex items-center gap-2 opacity-70"><Check size={14} className="text-[#8A7356]" /> Includes $1.99 & $4.99 sets</li>
-                    <li className="flex items-start gap-2"><Check size={14} className="text-[#8A7356] shrink-0 mt-0.5" /> <span><strong className="text-stone-800">Name Deconstruction:</strong> Elements & Roots.</span></li>
-                    <li className="flex items-start gap-2"><Check size={14} className="text-[#8A7356] shrink-0 mt-0.5" /> <span><strong className="text-stone-800">AI Zen Poetry:</strong> Exclusive bilingual poem generated for you.</span></li>
-                  </ul>
+              {/* Scroll Dots Indicator */}
+              <div className="flex justify-center gap-1.5 mb-5 shrink-0">
+                {[1, 2, 3].map(dot => (
+                  <div key={dot} className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${activeTier === dot ? 'bg-stone-800' : 'bg-stone-300'}`} />
+                ))}
+              </div>
+
+              {/* Tiers Swipe Container */}
+              <div className="w-full relative shrink-0">
+                <div className="swipe-container hide-scrollbar w-full items-center" onScroll={handleScroll}>
                   
-                  <a 
-                    href={`https://jasonwave356.gumroad.com/l/zen-enlightenment?Aesthetic%20Name=${displayName}`}
-                    data-gumroad-overlay-checkout="true"
-                    target="_blank" 
-                    rel="noopener noreferrer" 
-                    className="w-full py-3 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition-all active:scale-[0.95] bg-stone-900 text-[#EAE5DA] hover:bg-stone-800"
-                  >
-                    <CreditCard size={16} /> Unlock for $9.99
-                  </a>
+                  {/* ====== Tier 1: THE SCROLL ====== */}
+                  <div className="w-full min-w-full flex-shrink-0 snap-center px-4 flex justify-center">
+                    <div className="w-full max-w-[280px] bg-[#FDFBF7] rounded-[24px] p-5 shadow-[0_8px_30px_rgb(0,0,0,0.06)] border border-stone-200 flex flex-col relative">
+                      
+                      {/* Simulated Images Area */}
+                      <div className="flex gap-4 items-end justify-center mb-6 mt-4 h-[140px]">
+                        {/* CLEAN ART Mockup */}
+                        <div className="flex flex-col items-center gap-2">
+                          <div className="w-[70px] aspect-square rounded-lg overflow-hidden relative shadow-sm border border-stone-200/50">
+                            <img src={cfg.image} className="absolute inset-0 w-full h-full object-cover opacity-80" alt="Scenery" />
+                            <div className="absolute inset-0 bg-black/30 flex items-center justify-center px-1">
+                              <span className="text-white text-[15px] font-bold shadow-md drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] tracking-widest whitespace-nowrap" style={{ fontFamily: font.font }}>{displayName}</span>
+                            </div>
+                          </div>
+                          <span className="text-[6px] text-stone-400 uppercase tracking-widest font-medium">Clean Art</span>
+                        </div>
+                        {/* WALLPAPER Mockup */}
+                        <div className="flex flex-col items-center gap-2">
+                          <div className="w-[70px] aspect-[9/19] rounded-[10px] bg-stone-50 border border-stone-200 shadow-md flex flex-col items-center justify-center p-2 text-center relative overflow-hidden">
+                              <span className="text-stone-800 text-[16px] font-bold mb-2 tracking-widest whitespace-nowrap" style={{ fontFamily: font.font }}>{displayName}</span>
+                              <div className="text-[3px] text-stone-400 leading-tight">Peace is an endless resort...</div>
+                              <div className="absolute bottom-2 w-full text-center text-[3px] text-stone-300">悠然餘閒</div>
+                          </div>
+                          <span className="text-[6px] text-stone-400 uppercase tracking-widest font-medium">Wallpaper</span>
+                        </div>
+                      </div>
 
-                  <div className="mt-3 flex flex-col items-center w-full">
-                    <button 
-                      onClick={() => setShowRedeem(!showRedeem)} 
-                      className="text-[9px] text-stone-500 uppercase tracking-widest hover:text-stone-800 underline underline-offset-2 transition-colors"
-                    >
-                      Already purchased? Redeem here
-                    </button>
-                    
-                    {showRedeem && (
-                      <div className="w-full mt-3 flex items-center gap-2 animate-in fade-in slide-in-from-top-2 duration-300">
-                        <input 
-                          type="text" 
-                          placeholder="Enter Order ID" 
-                          value={orderId}
-                          onChange={(e) => setOrderId(e.target.value)}
-                          className="flex-1 bg-stone-100 border border-stone-300 text-stone-800 text-[10px] px-3 py-2.5 rounded-lg focus:outline-none focus:border-stone-500 font-mono tracking-wider placeholder:font-sans placeholder:tracking-normal"
-                        />
-                        <button 
-                          onClick={handleGenerateBooklet}
-                          disabled={isMintingPDF || !orderId} 
-                          className={`px-3 py-2.5 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all ${
-                            isMintingPDF || !orderId
-                              ? 'bg-stone-300 text-stone-500 cursor-not-allowed' 
-                              : 'bg-amber-600 text-white hover:bg-amber-500 shadow-md active:scale-[0.95]'
-                          }`}
-                        >
-                          {isMintingPDF ? 'Wait...' : 'Generate'}
+                      <div className="border-t border-stone-200 pt-4">
+                        <div className="flex justify-between items-baseline mb-0.5">
+                          <h3 className="text-xs tracking-widest font-bold uppercase text-stone-800">The Scroll</h3>
+                          <span className="font-bold text-base text-stone-800">$1.99</span>
+                        </div>
+                        <p className="text-[9px] text-stone-500 italic mb-4">Basic digital art set.</p>
+                        
+                        <ul className="text-[10px] text-stone-600 space-y-2 mb-5 min-h-[60px]">
+                          <li className="flex items-center gap-2"><Check size={12} className="text-emerald-600 shrink-0"/> High-Res Clean Artwork</li>
+                          <li className="flex items-center gap-2"><Check size={12} className="text-emerald-600 shrink-0"/> High-Res Mobile Wallpaper</li>
+                        </ul>
+                        
+                        <button className="w-full bg-[#1C1A17] text-[#FDFBF7] py-2.5 rounded-xl text-[10px] font-bold tracking-[0.15em] uppercase flex items-center justify-center gap-2 hover:bg-black transition-colors shadow-md">
+                          <CreditCard size={14}/> Unlock for $1.99
                         </button>
                       </div>
-                    )}
+                    </div>
+                  </div>
+
+                  {/* ====== Tier 2: THE AWAKENING ====== */}
+                  <div className="w-full min-w-full flex-shrink-0 snap-center px-4 flex justify-center">
+                    <div className="w-full max-w-[280px] bg-[#1A1816] rounded-[24px] p-5 shadow-2xl border border-stone-800 flex flex-col relative">
+                      <div className="absolute top-0 right-4 bg-[#F5A623] text-[#1A1816] text-[8px] font-bold px-2 py-1 rounded-b-md tracking-widest uppercase">Most Popular</div>
+                      
+                      {/* Simulated Images Area */}
+                      <div className="flex gap-4 items-center justify-center mb-6 mt-4 h-[140px]">
+                        {/* GALLERY ART Mockup */}
+                        <div className="flex flex-col items-center gap-2">
+                          <div className="w-[65px] aspect-[3/4] bg-white rounded-sm shadow-md flex flex-col items-center justify-center p-2 border border-stone-200 relative overflow-hidden">
+                              <span className="text-stone-900 text-[16px] font-bold mb-2 tracking-widest mt-2 whitespace-nowrap" style={{ fontFamily: font.font }}>{displayName}</span>
+                              <div className="text-[3px] text-stone-400 leading-tight text-center mt-auto">Minimalist Zen style.</div>
+                          </div>
+                          <span className="text-[6px] text-stone-400 uppercase tracking-widest font-medium">Gallery Art</span>
+                        </div>
+                        {/* TATTOO STENCIL Mockup */}
+                        <div className="flex flex-col items-center gap-2">
+                          <div className="w-[85px] h-[85px] rounded-lg border border-stone-700 bg-[#2A2826] overflow-hidden relative shadow-inner flex items-center justify-center">
+                            <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'linear-gradient(45deg, #444 25%, transparent 25%), linear-gradient(-45deg, #444 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #444 75%), linear-gradient(-45deg, transparent 75%, #444 75%)', backgroundSize: '8px 8px', backgroundPosition: '0 0, 0 4px, 4px -4px, -4px 0px' }}></div>
+                            <div className="absolute top-1 text-center w-full text-[4px] text-stone-400 tracking-widest">TRANSPARENT PNG</div>
+                            <span className="text-white text-[20px] font-black relative z-10 tracking-widest whitespace-nowrap" style={{ fontFamily: font.font }}>{displayName}</span>
+                          </div>
+                          <span className="text-[6px] text-stone-400 uppercase tracking-widest font-medium flex items-center gap-1"><div className="w-1.5 h-1.5 border border-stone-400 rounded-sm"></div> Tattoo Stencil</span>
+                        </div>
+                      </div>
+
+                      <div className="border-t border-stone-700 pt-4">
+                        <div className="flex justify-between items-baseline mb-0.5">
+                          <h3 className="text-xs tracking-widest font-bold uppercase text-[#F5A623] flex items-center gap-1.5"><Crown size={12}/> The Awakening</h3>
+                          <span className="font-bold text-base text-white">$4.99</span>
+                        </div>
+                        <p className="text-[9px] text-stone-400 italic mb-4">Physical & Creator upgrades.</p>
+                        
+                        <ul className="text-[10px] text-stone-300 space-y-2 mb-5 min-h-[60px]">
+                          <li className="flex items-center gap-2"><Check size={12} className="text-[#F5A623] shrink-0"/> Includes $1.99 Scroll</li>
+                          <li className="flex items-start gap-2"><Check size={12} className="text-[#F5A623] shrink-0 mt-0.5"/> <div><strong className="text-white">Tattoo Stencil:</strong> Transparent PNG.</div></li>
+                          <li className="flex items-start gap-2"><Check size={12} className="text-[#F5A623] shrink-0 mt-0.5"/> <div><strong className="text-white">Gallery Art:</strong> Framing-ready PDF.</div></li>
+                        </ul>
+                        
+                        <button className="w-full bg-[#F5A623] text-[#1A1816] py-2.5 rounded-xl text-[10px] font-bold tracking-[0.15em] uppercase flex items-center justify-center gap-2 hover:bg-[#ffb53e] transition-colors shadow-[0_4px_15px_rgba(245,166,35,0.25)]">
+                          <CreditCard size={14}/> Unlock for $4.99
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* ====== Tier 3: THE ENLIGHTENMENT ====== */}
+                  <div className="w-full min-w-full flex-shrink-0 snap-center px-4 flex justify-center">
+                    <div className="w-full max-w-[280px] bg-[#FDFBF7] rounded-[24px] p-5 shadow-[0_8px_30px_rgb(0,0,0,0.06)] border border-stone-200 flex flex-col relative">
+                      
+                      {/* Simulated Images Area */}
+                      <div className="flex flex-col items-center justify-center mb-6 mt-4 h-[140px]">
+                        {/* BOOKLET Mockup */}
+                        <div className="w-[180px] aspect-[4/3] bg-white rounded-sm shadow-md flex border border-stone-200/50 overflow-hidden relative">
+                          <div className="absolute inset-y-0 left-1/2 w-[2px] bg-gradient-to-r from-stone-200 via-stone-100 to-transparent -translate-x-1/2 z-10 shadow-[-2px_0_4px_rgba(0,0,0,0.05)]"></div>
+                          {/* Left Page (修正為單行不換行) */}
+                          <div className="w-1/2 h-full px-3 py-4 flex flex-col justify-start border-r border-stone-100 bg-white overflow-hidden">
+                              <span className="text-[4px] text-stone-400 uppercase tracking-widest mb-1.5 font-bold">Chapter I. Origin</span>
+                              <span className="text-stone-800 text-[18px] font-bold mb-1 tracking-widest whitespace-nowrap" style={{ fontFamily: font.font }}>{displayName}</span>
+                              <span className="text-[5px] text-stone-500 uppercase tracking-widest mb-3">{currentName.pinyin}</span>
+                              <div className="text-[3px] text-stone-600 leading-[1.6]">Elements: Water & Earth.<br/>Philosophy: Wabi-Sabi.</div>
+                          </div>
+                          {/* Right Page */}
+                          <div className="w-1/2 h-full px-3 py-4 flex flex-col justify-start bg-[#FAF9F6] relative">
+                              <span className="text-[4px] text-[#b22222] uppercase tracking-widest mb-2 font-bold text-right w-full">Chapter II. Poetry</span>
+                              <div className="text-[6px] text-stone-800 leading-loose font-medium mb-1.5 pt-1" style={{ fontFamily: "'Noto Serif TC', serif" }}>
+                                風過疏竹不留聲，<br/>流沙萬里任平生。
+                              </div>
+                              <div className="text-[3.5px] text-stone-500 leading-tight">Wind sweeps the bamboo...</div>
+                              
+                              {/* 替換為 LOGO.jpg，使用 mix-blend-multiply 將白底去背完美融合 */}
+                              <div className="absolute bottom-2 right-2 w-[22px] h-[22px] opacity-50 pointer-events-none mix-blend-multiply">
+                                <SafeImage src="/LOGO.jpg" alt="Logo Stamp" className="w-full h-full object-contain mix-blend-multiply" fallback={<TraditionalSealFallback size="w-full h-full" />} />
+                              </div>
+                          </div>
+                        </div>
+                        <span className="text-[6px] text-stone-400 uppercase tracking-widest mt-3 font-medium flex items-center gap-1"><BookOpen size={8}/> Personal Zen Booklet (PDF)</span>
+                      </div>
+
+                      <div className="border-t border-stone-200 pt-4">
+                        <div className="flex justify-between items-baseline mb-0.5">
+                          <h3 className="text-xs tracking-widest font-bold uppercase text-stone-800">The Enlightenment</h3>
+                          <span className="font-bold text-base text-stone-800">$9.99</span>
+                        </div>
+                        <p className="text-[9px] text-stone-500 italic mb-4">Ultimate Personal IP & Philosophy.</p>
+                        
+                        <ul className="text-[10px] text-stone-600 space-y-2 mb-5 min-h-[60px]">
+                          <li className="flex items-center gap-2"><Check size={12} className="text-emerald-600 shrink-0"/> Includes $1.99 & $4.99 sets</li>
+                          <li className="flex items-start gap-2"><Check size={12} className="text-emerald-600 shrink-0 mt-0.5"/> <div><strong className="text-stone-800">Name Deconstruction:</strong> Elements & Roots.</div></li>
+                          <li className="flex items-start gap-2"><Check size={12} className="text-emerald-600 shrink-0 mt-0.5"/> <div><strong className="text-stone-800">AI Zen Poetry:</strong> Exclusive bilingual poem generated for you.</div></li>
+                        </ul>
+                        
+                        <button 
+                          onClick={handleGenerateBooklet} 
+                          disabled={isMintingPDF}
+                          className="w-full bg-[#1C1A17] text-[#FDFBF7] py-2.5 rounded-xl text-[10px] font-bold tracking-[0.15em] uppercase flex items-center justify-center gap-2 hover:bg-black transition-colors shadow-md disabled:opacity-80"
+                        >
+                          {isMintingPDF ? <RefreshCw size={14} className="animate-spin" /> : <CreditCard size={14}/>}
+                          {isMintingPDF ? 'Generating...' : 'Unlock for $9.99'}
+                        </button>
+
+                        <div className="mt-3 text-center">
+                          <button 
+                            onClick={() => {
+                              setShowRedeem(true);
+                              showToast('Redeem function ready.');
+                            }} 
+                            className="text-[8px] text-stone-400 hover:text-stone-600 tracking-widest underline underline-offset-4 uppercase transition-colors"
+                          >
+                            Already purchased? Redeem here
+                          </button>
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
                 </div>
               </div>
 
-            </div>
-            
-            <div className="mt-2 flex flex-col items-center opacity-60">
-               <p className="text-[9px] text-stone-500 uppercase tracking-widest mb-1">Secured by</p>
-               <div className="flex items-center gap-1 text-stone-600 font-bold text-xs tracking-tighter">Gumroad</div>
-            </div>
+              {/* Bottom Footer Details with IP ID */}
+              <div className="mt-8 mb-4 flex flex-col items-center text-stone-400 space-y-2 shrink-0">
+                <div className="text-[9px] font-mono tracking-widest opacity-60 uppercase">{uniqueIpId}</div>
+                <div className="flex flex-col items-center gap-0.5">
+                  <span className="text-[8px] tracking-[0.2em] uppercase font-light">Secured By</span>
+                  <span className="text-[10px] font-medium tracking-wide">Gumroad</span>
+                </div>
+              </div>
 
-          </section>
+            </div>
+          </>
         )}
       </div>
     </>
