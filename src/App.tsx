@@ -86,11 +86,11 @@ export default function App() {
   const [activeScenery, setActiveScenery] = useState<SceneryType>('bamboo');
   const [genderFilter, setGenderFilter] = useState<GenderType>('neutral');
   
-  const [currentName, setCurrentName] = useState<NameItem>(
-    nameDatabase.length > 0 
+  const [currentName, setCurrentName] = useState<NameItem>(() => {
+    return nameDatabase.length > 0 
       ? nameDatabase[Math.floor(Math.random() * nameDatabase.length)] 
-      : { scenery: 'desert', gender: 'neutral', nameTw: '漠無跡', nameCn: '漠无迹', pinyin: 'Mò Wú-jì', storyEn: 'Means leaving no trace like shifting sands.' }
-  );
+      : { scenery: 'desert', gender: 'neutral', nameTw: '漠無跡', nameCn: '漠无迹', pinyin: 'Mò Wú-jì', storyEn: 'Means leaving no trace like shifting sands.' };
+  });
   
   const [fontStyle, setFontStyle] = useState<string>('cursive');
   const [isSimp, setIsSimp] = useState<boolean>(false);
@@ -104,43 +104,72 @@ export default function App() {
 
   const [uniqueIpId] = useState(`IP ID: YR-${Math.floor(10000 + Math.random() * 90000)}`);
   const cardRef = useRef<HTMLDivElement>(null);
+  const downloadTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const timer = setTimeout(() => setIsGenerating(false), 2800);
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      if (downloadTimerRef.current) clearTimeout(downloadTimerRef.current);
+    };
   }, []);
 
-  const showToast = (message: string) => {
+  const showToast = useCallback((message: string) => {
     setToastMessage(message);
     setTimeout(() => setToastMessage(''), 3000);
-  };
+  }, []);
 
-  const pickName = (scenery: SceneryType, gender: GenderType, currentObj?: NameItem): NameItem => {
+  const pickName = useCallback((scenery: SceneryType, gender: GenderType, currentObj?: NameItem): NameItem => {
     let pool = nameDatabase.filter(n => n.scenery === scenery && n.gender === gender);
     if (pool.length === 0) pool = nameDatabase.filter(n => n.scenery === scenery);
+    
     const others = pool.filter(n => n.nameTw !== currentObj?.nameTw);
     if (others.length > 0) return others[Math.floor(Math.random() * others.length)];
-    return pool.length > 0 ? pool[Math.floor(Math.random() * pool.length)] : currentName;
-  };
+    
+    // 如果池子裡唯一的名字就是當前名字，直接返回，避免出錯
+    return pool.length > 0 ? pool[0] : currentName;
+  }, [currentName]);
 
-  const triggerGeneration = (action: () => void) => {
+  const triggerGeneration = useCallback((action: () => void) => {
     if (isGenerating) return;
     setIsGenerating(true);
-    setTimeout(() => { action(); setTimeout(() => setIsGenerating(false), 300); }, 2800);
-  };
+    setTimeout(() => { 
+      action(); 
+      setTimeout(() => setIsGenerating(false), 300); 
+    }, 2800);
+  }, [isGenerating]);
 
-  const regenerate = () => triggerGeneration(() => setCurrentName(pickName(activeScenery, genderFilter, currentName)));
-  const switchScenery = (s: SceneryType) => { setActiveScenery(s); triggerGeneration(() => setCurrentName(pickName(s, genderFilter))); };
-  const switchGender = (g: GenderType) => { setGenderFilter(g); triggerGeneration(() => setCurrentName(pickName(activeScenery, g))); };
+  const regenerate = useCallback(() => {
+    triggerGeneration(() => setCurrentName(pickName(activeScenery, genderFilter, currentName)));
+  }, [activeScenery, genderFilter, currentName, pickName, triggerGeneration]);
+
+  const switchScenery = useCallback((s: SceneryType) => { 
+    setActiveScenery(s); 
+    triggerGeneration(() => setCurrentName(pickName(s, genderFilter))); 
+  }, [genderFilter, pickName, triggerGeneration]);
+
+  const switchGender = useCallback((g: GenderType) => { 
+    setGenderFilter(g); 
+    triggerGeneration(() => setCurrentName(pickName(activeScenery, g))); 
+  }, [activeScenery, pickName, triggerGeneration]);
 
   const handleDownloadClick = () => {
     if (isGenerating || !cardRef.current) return;
     setShowQR(true);
     showToast('Saving Art...');
     
-    setTimeout(() => {
+    downloadTimerRef.current = setTimeout(() => {
       const loadHtml2Canvas = () => {
         if ((window as any).html2canvas) return Promise.resolve((window as any).html2canvas);
+        
+        // 檢查是否已有相同 Script 正在載入，避免重複建立
+        const existingScript = document.querySelector('script[src*="html2canvas.min.js"]');
+        if (existingScript) {
+          return new Promise((resolve) => {
+            existingScript.addEventListener('load', () => resolve((window as any).html2canvas));
+          });
+        }
+
         return new Promise((resolve, reject) => {
           const script = document.createElement('script');
           script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
@@ -173,7 +202,7 @@ export default function App() {
     utt.lang = isSimp ? 'zh-CN' : 'zh-TW';
     utt.rate = 0.85;
     window.speechSynthesis.speak(utt);
-  }, [currentName, isSimp]);
+  }, [currentName, isSimp, showToast]);
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const scrollLeft = e.currentTarget.scrollLeft;
@@ -218,7 +247,6 @@ export default function App() {
         </div>
       </div>
 
-      {/* 縮小 max-w 並加入 py-4 讓畫面更有呼吸感 */}
       <div className="mx-auto max-w-[375px] w-full min-h-[100dvh] h-[100dvh] overflow-hidden bg-[#EAE5DA] text-[#3A352E] font-sans flex flex-col items-center py-4 select-none relative shadow-[0_0_50px_rgba(0,0,0,0.15)]">
         {!showCheckout ? (
           <>
@@ -228,7 +256,6 @@ export default function App() {
               </p>
             </header>
 
-            {/* 加入 px-8 大留白 */}
             <section className="w-full flex items-stretch gap-3 shrink-0 px-8 mb-4">
               <div className="w-[22%] relative flex flex-col items-center justify-center p-1.5 overflow-hidden bg-stone-900/5 rounded-xl border border-stone-800/10 shadow-inner">
                 <SafeImage src="/LOGO.png" alt="Yuran Yuxian" className="w-full h-full max-h-[80px] object-contain mix-blend-multiply" fallback={<div className="py-2 flex flex-col items-center justify-center h-full"><h1 className="text-sm font-semibold tracking-widest text-stone-800 font-serif" style={{ writingMode: 'vertical-rl', textOrientation: 'upright' }}>悠然餘閒</h1></div>} />
@@ -282,7 +309,6 @@ export default function App() {
               </div>
             </section>
 
-            {/* 加入 px-8 大留白 */}
             <section className="w-full flex-1 min-h-0 shrink-1 px-8 mb-4 flex flex-col">
               <div ref={cardRef} className="relative w-full h-full rounded-2xl overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.3)] bg-stone-950 border border-stone-800/50 flex flex-col justify-between p-4 sm:p-5">
                 <img src={cfg.image} alt={cfg.labelEn} className="absolute inset-0 w-full h-full object-cover opacity-60" />
@@ -317,14 +343,12 @@ export default function App() {
               </div>
             </section>
 
-            {/* 加入 px-8 大留白 */}
             <footer className="w-full grid grid-cols-12 gap-2 shrink-0 px-8 mb-3">
               <button onClick={regenerate} disabled={isGenerating} className="col-span-3 flex flex-col items-center justify-center gap-0.5 py-2.5 rounded-xl bg-white border border-stone-300 text-stone-700 text-[8px] font-medium tracking-wider uppercase shadow-sm active:scale-[0.98] disabled:opacity-50"><RefreshCw size={12} className={`text-amber-700 ${isGenerating ? 'animate-spin' : ''}`} />REGENERATE</button>
               <button onClick={() => setShowCheckout(true)} disabled={isGenerating} className="col-span-6 flex flex-col items-center justify-center gap-0.5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 text-stone-950 text-[9px] font-bold tracking-widest uppercase shadow-lg active:scale-[0.98] hover:brightness-105 border border-amber-600/50 disabled:opacity-80"><Crown size={12} className="text-white animate-pulse" />UNLOCK PREMIUM</button>
               <button onClick={handleDownloadClick} disabled={isGenerating} className="col-span-3 flex flex-col items-center justify-center gap-0.5 py-2.5 rounded-xl bg-[#3A352E] text-[#EAE5DA] text-[8px] font-medium tracking-wider uppercase shadow-md active:scale-[0.98] disabled:opacity-50"><Download size={12} className="text-amber-500" />SAVE ART</button>
             </footer>
 
-            {/* 加入 px-8 大留白 */}
             <div className="w-full px-8 shrink-0 pb-1">
                <div className="w-full h-[40px] rounded-lg border border-stone-300/80 border-dashed bg-black/5 flex items-center justify-center">
                   <span className="text-[8px] text-stone-500 tracking-widest uppercase">ADVERTISEMENT SPACE</span>
