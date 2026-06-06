@@ -87,7 +87,7 @@ export default function App() {
   const [genderFilter, setGenderFilter] = useState<GenderType>('neutral');
   
   const [currentName, setCurrentName] = useState<NameItem>(() => {
-    return nameDatabase.length > 0 
+    return nameDatabase && nameDatabase.length > 0 
       ? nameDatabase[Math.floor(Math.random() * nameDatabase.length)] 
       : { scenery: 'desert', gender: 'neutral', nameTw: '漠無跡', nameCn: '漠无迹', pinyin: 'Mò Wú-jì', storyEn: 'Means leaving no trace like shifting sands.' };
   });
@@ -99,12 +99,27 @@ export default function App() {
   const [showQR, setShowQR] = useState<boolean>(false);
   
   const [activeTier, setActiveTier] = useState<number>(1);
-  const [isMintingPDF, setIsMintingPDF] = useState(false); 
   const [toastMessage, setToastMessage] = useState<string>('');
 
   const [uniqueIpId] = useState(`IP ID: YR-${Math.floor(10000 + Math.random() * 90000)}`);
   const cardRef = useRef<HTMLDivElement>(null);
   const downloadTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // 【優化載入邏輯】確保每次打開選項畫面時，Gumroad 腳本都能成功綁定燈箱
+  useEffect(() => {
+    if (showCheckout) {
+      const scriptId = 'gumroad-overlay-script';
+      let script = document.getElementById(scriptId);
+      if (script) {
+        script.remove(); // 強制移除舊腳本
+      }
+      script = document.createElement('script');
+      script.id = scriptId;
+      script.src = "https://gumroad.com/js/gumroad.js";
+      script.async = true;
+      document.body.appendChild(script);
+    }
+  }, [showCheckout]);
 
   useEffect(() => {
     const timer = setTimeout(() => setIsGenerating(false), 2800);
@@ -120,13 +135,12 @@ export default function App() {
   }, []);
 
   const pickName = useCallback((scenery: SceneryType, gender: GenderType, currentObj?: NameItem): NameItem => {
-    let pool = nameDatabase.filter(n => n.scenery === scenery && n.gender === gender);
-    if (pool.length === 0) pool = nameDatabase.filter(n => n.scenery === scenery);
+    let pool = nameDatabase ? nameDatabase.filter(n => n.scenery === scenery && n.gender === gender) : [];
+    if (pool.length === 0 && nameDatabase) pool = nameDatabase.filter(n => n.scenery === scenery);
     
     const others = pool.filter(n => n.nameTw !== currentObj?.nameTw);
     if (others.length > 0) return others[Math.floor(Math.random() * others.length)];
     
-    // 如果池子裡唯一的名字就是當前名字，直接返回，避免出錯
     return pool.length > 0 ? pool[0] : currentName;
   }, [currentName]);
 
@@ -162,7 +176,6 @@ export default function App() {
       const loadHtml2Canvas = () => {
         if ((window as any).html2canvas) return Promise.resolve((window as any).html2canvas);
         
-        // 檢查是否已有相同 Script 正在載入，避免重複建立
         const existingScript = document.querySelector('script[src*="html2canvas.min.js"]');
         if (existingScript) {
           return new Promise((resolve) => {
@@ -209,28 +222,6 @@ export default function App() {
     const width = e.currentTarget.offsetWidth;
     const newIndex = Math.round(scrollLeft / width) + 1;
     setActiveTier(newIndex);
-  };
-
-  const handleGenerateBooklet = async () => {
-    setIsMintingPDF(true); 
-    try {
-      const response = await fetch('/api/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: isSimp ? currentName.nameCn : currentName.nameTw,
-          scenery: sceneryConfig[activeScenery].labelEn, 
-          concept: currentName.storyEn 
-        })
-      });
-      if (!response.ok) throw new Error('API 回應失敗');
-      await response.json(); 
-      showToast('AI 生成成功！準備連接 PDF 引擎。');
-    } catch (error) {
-      showToast('API 呼叫失敗，請確定已經執行 vercel dev。');
-    } finally {
-      setIsMintingPDF(false);
-    }
   };
 
   const cfg = sceneryConfig[activeScenery];
@@ -345,7 +336,15 @@ export default function App() {
 
             <footer className="w-full grid grid-cols-12 gap-2 shrink-0 px-8 mb-3">
               <button onClick={regenerate} disabled={isGenerating} className="col-span-3 flex flex-col items-center justify-center gap-0.5 py-2.5 rounded-xl bg-white border border-stone-300 text-stone-700 text-[8px] font-medium tracking-wider uppercase shadow-sm active:scale-[0.98] disabled:opacity-50"><RefreshCw size={12} className={`text-amber-700 ${isGenerating ? 'animate-spin' : ''}`} />REGENERATE</button>
-              <button onClick={() => setShowCheckout(true)} disabled={isGenerating} className="col-span-6 flex flex-col items-center justify-center gap-0.5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 text-stone-950 text-[9px] font-bold tracking-widest uppercase shadow-lg active:scale-[0.98] hover:brightness-105 border border-amber-600/50 disabled:opacity-80"><Crown size={12} className="text-white animate-pulse" />UNLOCK PREMIUM</button>
+              
+              <button 
+                onClick={() => setShowCheckout(true)} 
+                disabled={isGenerating} 
+                className="col-span-6 flex flex-col items-center justify-center gap-0.5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 text-stone-950 text-[9px] font-bold tracking-widest uppercase shadow-lg active:scale-[0.98] hover:brightness-105 border border-amber-600/50 disabled:opacity-80"
+              >
+                <Crown size={12} className="text-white animate-pulse" />UNLOCK PREMIUM
+              </button>
+              
               <button onClick={handleDownloadClick} disabled={isGenerating} className="col-span-3 flex flex-col items-center justify-center gap-0.5 py-2.5 rounded-xl bg-[#3A352E] text-[#EAE5DA] text-[8px] font-medium tracking-wider uppercase shadow-md active:scale-[0.98] disabled:opacity-50"><Download size={12} className="text-amber-500" />SAVE ART</button>
             </footer>
 
@@ -421,9 +420,13 @@ export default function App() {
                           <li className="flex items-center gap-2"><Check size={12} className="text-emerald-600 shrink-0"/> High-Res Mobile Wallpaper</li>
                         </ul>
                         
-                        <button className="w-full bg-[#1C1A17] text-[#FDFBF7] py-2.5 rounded-xl text-[10px] font-bold tracking-[0.15em] uppercase flex items-center justify-center gap-2 hover:bg-black transition-colors shadow-md">
+                        <a 
+                          href="https://jasonwave356.gumroad.com/l/zvhwrw?wanted=true" 
+                          data-gumroad-overlay-checkout="true"
+                          className="w-full bg-[#1C1A17] text-[#FDFBF7] py-2.5 rounded-xl text-[10px] font-bold tracking-[0.15em] uppercase flex items-center justify-center gap-2 hover:bg-black transition-colors shadow-md"
+                        >
                           <CreditCard size={14}/> Unlock for $1.99
-                        </button>
+                        </a>
                       </div>
                     </div>
                   </div>
@@ -464,9 +467,13 @@ export default function App() {
                           <li className="flex items-start gap-2"><Check size={12} className="text-[#F5A623] shrink-0 mt-0.5"/> <div><strong className="text-white">Gallery Art:</strong> Framing-ready PDF.</div></li>
                         </ul>
                         
-                        <button className="w-full bg-[#F5A623] text-[#1A1816] py-2.5 rounded-xl text-[10px] font-bold tracking-[0.15em] uppercase flex items-center justify-center gap-2 hover:bg-[#ffb53e] transition-colors shadow-[0_4px_15px_rgba(245,166,35,0.25)]">
+                        <a 
+                          href="https://jasonwave356.gumroad.com/l/rzlgdp?wanted=true" 
+                          data-gumroad-overlay-checkout="true"
+                          className="w-full bg-[#F5A623] text-[#1A1816] py-2.5 rounded-xl text-[10px] font-bold tracking-[0.15em] uppercase flex items-center justify-center gap-2 hover:bg-[#ffb53e] transition-colors shadow-[0_4px_15px_rgba(245,166,35,0.25)]"
+                        >
                           <CreditCard size={14}/> Unlock for $4.99
-                        </button>
+                        </a>
                       </div>
                     </div>
                   </div>
@@ -512,14 +519,13 @@ export default function App() {
                           <li className="flex items-start gap-2"><Check size={12} className="text-emerald-600 shrink-0 mt-0.5"/> <div><strong className="text-stone-800">AI Zen Poetry:</strong> Exclusive bilingual poem generated for you.</div></li>
                         </ul>
                         
-                        <button 
-                          onClick={handleGenerateBooklet} 
-                          disabled={isMintingPDF}
+                        <a 
+                          href="https://jasonwave356.gumroad.com/l/zen-enlightenment?wanted=true" 
+                          data-gumroad-overlay-checkout="true"
                           className="w-full bg-[#1C1A17] text-[#FDFBF7] py-2.5 rounded-xl text-[10px] font-bold tracking-[0.15em] uppercase flex items-center justify-center gap-2 hover:bg-black transition-colors shadow-md disabled:opacity-80"
                         >
-                          {isMintingPDF ? <RefreshCw size={14} className="animate-spin" /> : <CreditCard size={14}/>}
-                          {isMintingPDF ? 'Generating...' : 'Unlock for $9.99'}
-                        </button>
+                          <CreditCard size={14}/> Unlock for $9.99
+                        </a>
 
                         <div className="mt-3 text-center">
                           <button 
