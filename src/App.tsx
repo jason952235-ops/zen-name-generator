@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Volume2, RefreshCw, Download, Crown, ArrowLeft, Check, CreditCard, BookOpen } from 'lucide-react';
 import { nameDatabase } from './names';
 
@@ -105,13 +105,12 @@ export default function App() {
   const cardRef = useRef<HTMLDivElement>(null);
   const downloadTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // 【優化載入邏輯】確保每次打開選項畫面時，Gumroad 腳本都能成功綁定燈箱
   useEffect(() => {
     if (showCheckout) {
       const scriptId = 'gumroad-overlay-script';
       let script = document.getElementById(scriptId);
       if (script) {
-        script.remove(); // 強制移除舊腳本
+        script.remove();
       }
       script = document.createElement('script');
       script.id = scriptId;
