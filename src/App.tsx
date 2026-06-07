@@ -103,20 +103,25 @@ export default function App() {
 
   const [uniqueIpId] = useState(`IP ID: YR-${Math.floor(10000 + Math.random() * 90000)}`);
   const cardRef = useRef<HTMLDivElement>(null);
-  const downloadTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const downloadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // ✨ 修復後的 Gumroad 結帳燈箱載入邏輯
   useEffect(() => {
     if (showCheckout) {
       const scriptId = 'gumroad-overlay-script';
-      let script = document.getElementById(scriptId);
-      if (script) {
-        script.remove();
+      
+      // 1. 使用獨立變數尋找並移除舊標籤
+      const existingScript = document.getElementById(scriptId);
+      if (existingScript) {
+        existingScript.remove();
       }
-      script = document.createElement('script');
-      script.id = scriptId;
-      script.src = "https://gumroad.com/js/gumroad.js";
-      script.async = true;
-      document.body.appendChild(script);
+      
+      // 2. 建立新標籤時使用新變數，TypeScript 就會正確辨識其屬性
+      const newScript = document.createElement('script');
+      newScript.id = scriptId;
+      newScript.src = "https://gumroad.com/js/gumroad.js";
+      newScript.async = true;
+      document.body.appendChild(newScript);
     }
   }, [showCheckout]);
 
