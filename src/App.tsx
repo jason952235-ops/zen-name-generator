@@ -210,8 +210,7 @@ export default function App() {
   const [isGenerating, setIsGenerating] = useState<boolean>(true); 
   const [, setShowCheckout] = useState<boolean>(false);
   const [showQR, setShowQR] = useState<boolean>(false);
-  const [isPremiumUnlocked, setIsPremiumUnlocked] = useState<boolean>(false);
-  const [isStripeLoading, setIsStripeLoading] = useState<boolean>(false);
+  const [isPremiumUnlocked] = useState<boolean>(false);
   
   const [activeTier, setActiveTier] = useState<number>(1);
   const [toastMessage, setToastMessage] = useState<string>('');
@@ -238,48 +237,6 @@ export default function App() {
     trackEvent('page_view', { page_path: window.location.pathname });
   }, []);
 
-  useEffect(() => {
-    let isMounted = true;
-    const params = new URLSearchParams(window.location.search);
-    const sessionId = params.get('session_id');
-
-    async function verifyPayment() {
-      if (params.get('premium') !== 'success' || !sessionId) return;
-
-      try {
-        const response = await fetch(`/api/verify-checkout-session?session_id=${encodeURIComponent(sessionId)}`);
-        const data = await response.json();
-
-        if (!isMounted) return;
-
-        if (response.ok && data.paid === true) {
-          setIsPremiumUnlocked(true);
-          trackEvent('payment_success', {
-            amount_total: data.amount_total,
-            currency: data.currency
-          });
-          showToast('Premium unlocked. Your full identity report is ready.');
-        } else {
-          showToast('Payment was not verified. Premium remains locked.');
-        }
-      } catch {
-        if (isMounted) {
-          showToast('Payment verification failed. Please refresh after payment is complete.');
-        }
-      }
-    }
-
-    verifyPayment();
-
-    if (params.get('premium') === 'cancelled') {
-      setTimeout(() => showToast('Payment cancelled. Your free names are still available.'), 0);
-    }
-
-    return () => {
-      isMounted = false;
-    };
-  }, [showToast]);
-
   const refreshFreeNames = useCallback((scenery: SceneryType, gender: GenderType, currentObj?: NameItem) => {
     const names = pickUniqueNames(scenery, gender, 20, currentObj?.nameTw);
     if (names.length === 0) return;
@@ -288,22 +245,14 @@ export default function App() {
     setCurrentName(names[0]);
   }, []);
 
-  const startStripeCheckout = useCallback(async () => {
-    setIsStripeLoading(true);
-    trackEvent('premium_clicked', { price: 9.99, currency: 'USD' });
-    try {
-      const response = await fetch('/api/create-checkout-session', { method: 'POST' });
-      const data = await response.json();
-      if (!response.ok || !data.url) {
-        throw new Error('Stripe checkout failed.');
-      }
-      trackEvent('checkout_started', { price: 9.99, currency: 'USD' });
-      window.location.href = data.url;
-    } catch {
-      showToast('Stripe checkout is not ready. Please check payment settings.');
-      setIsStripeLoading(false);
-    }
-  }, [showToast]);
+  const openGumroadCheckout = useCallback(() => {
+    trackEvent('premium_clicked', { price: 4.99, currency: 'USD' });
+    trackEvent('checkout_started', { price: 4.99, currency: 'USD' });
+    window.open(
+      "https://jasonwave356.gumroad.com/l/rzlgdp",
+      "_blank"
+    );
+  }, []);
 
   const triggerGeneration = useCallback((action: () => void) => {
     if (isGenerating) return;
@@ -402,7 +351,7 @@ export default function App() {
   const displayName = isSimp ? currentName.nameCn : currentName.nameTw;
   const identityInsight = getIdentityInsight(currentName);
   const lockedPreviewCount = 17;
-  const useStripeCheckoutOnly = true;
+  const useMainCheckoutOnly = true;
 
   return (
     <>
@@ -415,7 +364,7 @@ export default function App() {
       </div>
 
       <div className="mx-auto max-w-[375px] w-full min-h-[100dvh] h-[100dvh] overflow-hidden bg-[#EAE5DA] text-[#3A352E] font-sans flex flex-col items-center py-4 select-none relative shadow-[0_0_50px_rgba(0,0,0,0.15)]">
-        {useStripeCheckoutOnly ? (
+        {useMainCheckoutOnly ? (
           <>
             <header className="text-center w-full flex flex-col items-center shrink-0 px-8 mb-3">
               <p className="text-[8px] tracking-[0.24em] text-amber-800 font-bold uppercase mb-1">
@@ -639,11 +588,11 @@ export default function App() {
                 </ul>
 
                 <button
-                  onClick={startStripeCheckout}
-                  disabled={isGenerating || isStripeLoading}
+                  onClick={openGumroadCheckout}
+                  disabled={isGenerating}
                   className="w-full bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 text-stone-950 py-3 rounded-xl text-[10px] font-bold tracking-[0.16em] uppercase flex items-center justify-center gap-2 shadow-lg active:scale-[0.98] disabled:opacity-70"
                 >
-                  <Crown size={14} /> {isStripeLoading ? 'Opening secure checkout...' : 'Unlock 20 names + PDF for US$9.99'}
+                  <Crown size={14} /> Unlock 20 Names + PDF ($4.99)
                 </button>
               </div>
               )}
@@ -841,7 +790,7 @@ export default function App() {
                 <div className="text-[9px] font-mono tracking-widest opacity-60 uppercase">{uniqueIpId}</div>
                 <div className="flex flex-col items-center gap-0.5">
                   <span className="text-[8px] tracking-[0.2em] uppercase font-light">Secured By</span>
-                  <span className="text-[10px] font-medium tracking-wide">Stripe</span>
+                  <span className="text-[10px] font-medium tracking-wide">Gumroad</span>
                 </div>
               </div>
 
