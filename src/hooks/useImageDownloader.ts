@@ -3,7 +3,7 @@ import { useCallback } from 'react';
 
 export const useImageDownloader = () => {
   const downloadCard = useCallback(async (cardRef: React.RefObject<HTMLDivElement | null>, fileName: string) => {
-    const html2canvasInstance = (window as any).html2canvas;
+    const html2canvasInstance = window.html2canvas;
     
     if (!cardRef.current || !html2canvasInstance) {
       alert("截圖功能尚未準備好，請稍後再試。");
@@ -57,8 +57,8 @@ export const useImageDownloader = () => {
           }
 
           // 3. 解決 LOGO 變形問題
-          const logos = clonedDoc.querySelectorAll('img[alt="悠然餘閒"]');
-          logos.forEach((logo: any) => {
+          const logos = clonedDoc.querySelectorAll<HTMLImageElement>('img[alt="悠然餘閒"]');
+          logos.forEach((logo) => {
             logo.style.objectFit = 'contain';
             logo.style.width = '100%';
             logo.style.height = 'auto';

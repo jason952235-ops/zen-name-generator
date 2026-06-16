@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+﻿import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Volume2, RefreshCw, Download, Crown, ArrowLeft, Check, CreditCard, BookOpen } from 'lucide-react';
 import { nameDatabase } from './names';
 
@@ -36,25 +36,98 @@ interface SceneryConfigItem {
   tag: string;
 }
 
+type Html2Canvas = (
+  element: HTMLElement,
+  options: { useCORS: boolean; scale: number; backgroundColor: string; onclone?: (clonedDoc: Document) => void }
+) => Promise<HTMLCanvasElement>;
+
+declare global {
+  interface Window {
+    html2canvas?: Html2Canvas;
+  }
+}
+
+const initialUniqueIpId = `IP ID: YR-${Math.floor(10000 + Math.random() * 90000)}`;
+
+function getNamePool(scenery: SceneryType, gender: GenderType) {
+  const exactPool = nameDatabase.filter((name) => name.scenery === scenery && name.gender === gender);
+  if (exactPool.length > 0) return exactPool;
+  return nameDatabase.filter((name) => name.scenery === scenery);
+}
+
+function pickUniqueNames(scenery: SceneryType, gender: GenderType, count: number, excludeNameTw?: string) {
+  const pool = getNamePool(scenery, gender).filter((name) => name.nameTw !== excludeNameTw);
+  const candidates = pool.length > 0 ? [...pool] : [...nameDatabase];
+  const selected: NameItem[] = [];
+
+  while (selected.length < count && candidates.length > 0) {
+    const index = Math.floor(Math.random() * candidates.length);
+    const [name] = candidates.splice(index, 1);
+    selected.push(name);
+  }
+
+  return selected;
+}
+
+function getIdentityInsight(name: NameItem) {
+  const sceneryInsights: Record<SceneryType, { imagery: string; personality: string; bestFor: string }> = {
+    bamboo: {
+      imagery: 'Bamboo suggests integrity, humility, resilience, and quiet confidence in Chinese culture.',
+      personality: 'A calm learner or professional who wants to appear thoughtful, steady, and sincere.',
+      bestFor: 'Students, language learners, educators, and people who want a gentle but dignified identity.'
+    },
+    jiangnan: {
+      imagery: 'Jiangnan evokes mist, water towns, poetry, elegance, and refined cultural taste.',
+      personality: 'A graceful communicator who wants a soft, artistic, and approachable Chinese identity.',
+      bestFor: 'Travelers, creatives, culture lovers, and people who want a refined social name.'
+    },
+    mountain: {
+      imagery: 'Mountains represent stability, ambition, inner discipline, and long-term strength.',
+      personality: 'A focused person who wants a name that feels grounded, mature, and dependable.',
+      bestFor: 'Business professionals, founders, consultants, and people working with Chinese companies.'
+    },
+    desert: {
+      imagery: 'Wind and sand suggest freedom, courage, distance, and a strong independent spirit.',
+      personality: 'An adventurous person who wants a memorable identity with movement and individuality.',
+      bestFor: 'Travelers, explorers, creators, and people who want a distinctive personal brand.'
+    }
+  };
+
+  const genderFit: Record<GenderType, string> = {
+    male: 'It keeps a masculine tone without sounding aggressive or hard to pronounce.',
+    female: 'It keeps a graceful tone without becoming overly delicate or difficult to use.',
+    neutral: 'It works well as a balanced Chinese name for foreigners because it feels natural, clear, and easy to introduce.'
+  };
+
+  const insight = sceneryInsights[name.scenery];
+  return {
+    meaning: name.storyEn || 'A poetic Chinese name designed to feel natural, memorable, and culturally grounded.',
+    imagery: insight.imagery,
+    personality: insight.personality,
+    bestFor: insight.bestFor,
+    foreignerFit: genderFit[name.gender]
+  };
+}
+
 const sceneryConfig: Record<SceneryType, SceneryConfigItem> = {
-  bamboo: { image: 'https://images.unsplash.com/photo-1504618223053-559bdef9dd5a?q=80&w=1000&auto=format&fit=crop', localPath: '/1.jpg', labelTw: '竹林幽谷', labelEn: 'Bamboo', color: 'from-green-950/85 to-emerald-900/40', tag: '竹' },
-  jiangnan: { image: 'https://images.unsplash.com/photo-1528164344705-47542687000d?q=80&w=1000&auto=format&fit=crop', localPath: '/2.jpg', labelTw: '煙雨江南', labelEn: 'Jiangnan', color: 'from-blue-950/85 to-cyan-900/40', tag: '江' },
-  mountain: { image: 'https://images.unsplash.com/photo-1542224566-6e85f2e6772f?q=80&w=1000&auto=format&fit=crop', localPath: '/3.jpg', labelTw: '高山流水', labelEn: 'Mountain', color: 'from-slate-900/85 to-slate-800/40', tag: '山' },
-  desert: { image: 'https://images.unsplash.com/photo-1509316975850-ff9c5deb0cd9?q=80&w=1000&auto=format&fit=crop', localPath: '/4.jpg', labelTw: '大漠孤煙', labelEn: 'Desert', color: 'from-orange-950/90 to-amber-900/40', tag: '漠' }
+  bamboo: { image: 'https://images.unsplash.com/photo-1504618223053-559bdef9dd5a?q=80&w=1000&auto=format&fit=crop', localPath: '/1.jpg', labelTw: 'Bamboo', labelEn: 'Bamboo', color: 'from-green-950/85 to-emerald-900/40', tag: 'B' },
+  jiangnan: { image: 'https://images.unsplash.com/photo-1528164344705-47542687000d?q=80&w=1000&auto=format&fit=crop', localPath: '/2.jpg', labelTw: 'Jiangnan', labelEn: 'Jiangnan', color: 'from-blue-950/85 to-cyan-900/40', tag: 'J' },
+  mountain: { image: 'https://images.unsplash.com/photo-1542224566-6e85f2e6772f?q=80&w=1000&auto=format&fit=crop', localPath: '/3.jpg', labelTw: 'Mountain', labelEn: 'Mountain', color: 'from-slate-900/85 to-slate-800/40', tag: 'M' },
+  desert: { image: 'https://images.unsplash.com/photo-1509316975850-ff9c5deb0cd9?q=80&w=1000&auto=format&fit=crop', localPath: '/4.jpg', labelTw: 'Desert', labelEn: 'Desert', color: 'from-orange-950/90 to-amber-900/40', tag: 'D' }
 };
 
 const fontStyles: Record<string, { font: string; label: string; labelEn: string }> = {
-  cursive: { font: "'Liu Jian Mao Cao', 'Kaiti TC', 'BiauKai', 'DFKai-SB', cursive", label: '草書', labelEn: 'Cursive' },
-  brush: { font: "'Ma Shan Zheng', 'Kaiti TC', 'BiauKai', 'DFKai-SB', cursive", label: '楷書', labelEn: 'Brush' },
-  scholar: { font: "'ZCOOL XiaoWei', 'Noto Serif TC', 'PMingLiU', serif", label: '行楷', labelEn: 'Scholar' }
+  cursive: { font: "'Liu Jian Mao Cao', 'Kaiti TC', 'BiauKai', 'DFKai-SB', cursive", label: '?', labelEn: 'Cursive' },
+  brush: { font: "'Ma Shan Zheng', 'Kaiti TC', 'BiauKai', 'DFKai-SB', cursive", label: '璆瑟', labelEn: 'Brush' },
+  scholar: { font: "'ZCOOL XiaoWei', 'Noto Serif TC', 'PMingLiU', serif", label: '銵扑', labelEn: 'Scholar' }
 };
 
 const TraditionalSealFallback = ({ size = "w-[70px] h-[70px]" }: { size?: string }) => (
   <div className={`border-[3px] border-[#b22222] p-0.5 flex flex-wrap justify-center items-center text-[#b22222] bg-[#FDFBF7] select-none rounded-[3px] shadow-[inset_0_0_8px_rgba(178,34,34,0.15),0_2px_6px_rgba(0,0,0,0.15)] ${size}`}>
-    <div className="w-1/2 h-1/2 flex items-center justify-center font-bold text-[14px] border-[0.5px] border-[#b22222]/10" style={{ fontFamily: "'Ma Shan Zheng', cursive" }}>餘</div>
-    <div className="w-1/2 h-1/2 flex items-center justify-center font-bold text-[14px] border-[0.5px] border-[#b22222]/10" style={{ fontFamily: "'Ma Shan Zheng', cursive" }}>悠</div>
-    <div className="w-1/2 h-1/2 flex items-center justify-center font-bold text-[14px] border-[0.5px] border-[#b22222]/10" style={{ fontFamily: "'Ma Shan Zheng', cursive" }}>閒</div>
-    <div className="w-1/2 h-1/2 flex items-center justify-center font-bold text-[14px] border-[0.5px] border-[#b22222]/10" style={{ fontFamily: "'Ma Shan Zheng', cursive" }}>然</div>
+    <div className="w-1/2 h-1/2 flex items-center justify-center font-bold text-[11px] border-[0.5px] border-[#b22222]/10" style={{ fontFamily: "'Ma Shan Zheng', cursive" }}>ZEN</div>
+    <div className="w-1/2 h-1/2 flex items-center justify-center font-bold text-[11px] border-[0.5px] border-[#b22222]/10" style={{ fontFamily: "'Ma Shan Zheng', cursive" }}>NAME</div>
+    <div className="w-1/2 h-1/2 flex items-center justify-center font-bold text-[11px] border-[0.5px] border-[#b22222]/10" style={{ fontFamily: "'Ma Shan Zheng', cursive" }}>ID</div>
+    <div className="w-1/2 h-1/2 flex items-center justify-center font-bold text-[11px] border-[0.5px] border-[#b22222]/10" style={{ fontFamily: "'Ma Shan Zheng', cursive" }}>SEAL</div>
   </div>
 );
 
@@ -67,7 +140,7 @@ const SafeImage = ({ src, alt, fallback, className, ...props }: React.ImgHTMLAtt
 const LogoTagStamp = ({ className = "" }: { className?: string }) => (
   <div className={`relative flex items-center justify-center overflow-hidden transition-all duration-300 ${className}`}>
     <div className="absolute inset-0 bg-amber-50/10 rounded-full blur-md"></div>
-    <SafeImage src="/LOGO.jpg" alt="悠然餘閒" className="w-full h-full object-contain relative z-10 drop-shadow-[0_2px_4px_rgba(0,0,0,0.6)]" style={{ filter: 'brightness(1.1) contrast(1.1)' }} fallback={<TraditionalSealFallback size="w-full h-full max-w-[66px] max-h-[66px]" />} />
+    <SafeImage src="/LOGO.jpg" alt="?擗?" className="w-full h-full object-contain relative z-10 drop-shadow-[0_2px_4px_rgba(0,0,0,0.6)]" style={{ filter: 'brightness(1.1) contrast(1.1)' }} fallback={<TraditionalSealFallback size="w-full h-full max-w-[66px] max-h-[66px]" />} />
   </div>
 );
 
@@ -75,23 +148,34 @@ const RitualLoader = ({ isGenerating }: { isGenerating: boolean }) => (
   <div className={`absolute inset-0 z-40 flex flex-col items-center justify-center bg-stone-950/95 backdrop-blur-md transition-all duration-1000 ease-in-out ${isGenerating ? 'opacity-100 visible' : 'opacity-0 invisible pointer-events-none'}`}>
     <div className="absolute w-48 h-48 bg-amber-600/10 rounded-full blur-3xl animate-pulse"></div>
     <div className="relative z-10 flex flex-col items-center animate-[pulse_2.5s_ease-in-out_infinite]">
-      <SafeImage src="/LOGO.png" alt="推演中" className="w-20 h-20 object-contain mb-6 drop-shadow-[0_0_15px_rgba(217,119,6,0.5)] scale-110" fallback={<div className="mb-6 scale-110 transform drop-shadow-[0_0_12px_rgba(178,34,34,0.4)]"><TraditionalSealFallback size="w-[62px] h-[62px]" /></div>} />
+      <SafeImage src="/LOGO.png" alt="Generating identity" className="w-20 h-20 object-contain mb-6 drop-shadow-[0_0_15px_rgba(217,119,6,0.5)] scale-110" fallback={<div className="mb-6 scale-110 transform drop-shadow-[0_0_12px_rgba(178,34,34,0.4)]"><TraditionalSealFallback size="w-[62px] h-[62px]" /></div>} />
       <div className="w-[1px] h-10 bg-gradient-to-b from-amber-500/60 to-transparent mb-4"></div>
       <p className="text-amber-500/90 tracking-[0.6em] font-light text-xs ml-2 font-serif uppercase">Seeking Destiny...</p>
     </div>
   </div>
 );
 
+const initialFreeNameSet = pickUniqueNames('bamboo', 'neutral', 3);
+const fallbackName: NameItem = {
+  scenery: 'bamboo',
+  gender: 'neutral',
+  nameTw: 'An Ran',
+  nameCn: 'An Ran',
+  pinyin: 'An Ran',
+  storyEn: 'A calm bamboo-inspired name that suggests peace, natural confidence, and quiet cultural elegance.'
+};
+const initialDisplayName = initialFreeNameSet[0] ?? nameDatabase[0] ?? fallbackName;
+
 export default function App() {
   const [activeScenery, setActiveScenery] = useState<SceneryType>('bamboo');
   const [genderFilter, setGenderFilter] = useState<GenderType>('neutral');
   
-  const [currentName, setCurrentName] = useState<NameItem>(() => {
-    return nameDatabase && nameDatabase.length > 0 
-      ? nameDatabase[Math.floor(Math.random() * nameDatabase.length)] 
-      : { scenery: 'desert', gender: 'neutral', nameTw: '漠無跡', nameCn: '漠无迹', pinyin: 'Mò Wú-jì', storyEn: 'Means leaving no trace like shifting sands.' };
-  });
+  const [currentName, setCurrentName] = useState<NameItem>(initialDisplayName);
   
+  const [freeNames, setFreeNames] = useState<NameItem[]>(() => {
+    return initialFreeNameSet.length > 0 ? initialFreeNameSet : [initialDisplayName];
+  });
+
   const [fontStyle, setFontStyle] = useState<string>('cursive');
   const [isSimp, setIsSimp] = useState<boolean>(false);
   const [isGenerating, setIsGenerating] = useState<boolean>(true); 
@@ -101,22 +185,22 @@ export default function App() {
   const [activeTier, setActiveTier] = useState<number>(1);
   const [toastMessage, setToastMessage] = useState<string>('');
 
-  const [uniqueIpId] = useState(`IP ID: YR-${Math.floor(10000 + Math.random() * 90000)}`);
+  const [uniqueIpId] = useState(initialUniqueIpId);
   const cardRef = useRef<HTMLDivElement>(null);
   const downloadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // ✨ 修復後的 Gumroad 結帳燈箱載入邏輯
+  // ??靽桀儔敺? Gumroad 蝯董?拳頛?摩
   useEffect(() => {
     if (showCheckout) {
       const scriptId = 'gumroad-overlay-script';
       
-      // 1. 使用獨立變數尋找並移除舊標籤
+      // 1. 雿輻?函?霈撠銝衣宏?方?璅惜
       const existingScript = document.getElementById(scriptId);
       if (existingScript) {
         existingScript.remove();
       }
       
-      // 2. 建立新標籤時使用新變數，TypeScript 就會正確辨識其屬性
+      // 重新載入 Gumroad 結帳腳本。
       const newScript = document.createElement('script');
       newScript.id = scriptId;
       newScript.src = "https://gumroad.com/js/gumroad.js";
@@ -138,15 +222,12 @@ export default function App() {
     setTimeout(() => setToastMessage(''), 3000);
   }, []);
 
-  const pickName = useCallback((scenery: SceneryType, gender: GenderType, currentObj?: NameItem): NameItem => {
-    let pool = nameDatabase ? nameDatabase.filter(n => n.scenery === scenery && n.gender === gender) : [];
-    if (pool.length === 0 && nameDatabase) pool = nameDatabase.filter(n => n.scenery === scenery);
-    
-    const others = pool.filter(n => n.nameTw !== currentObj?.nameTw);
-    if (others.length > 0) return others[Math.floor(Math.random() * others.length)];
-    
-    return pool.length > 0 ? pool[0] : currentName;
-  }, [currentName]);
+  const refreshFreeNames = useCallback((scenery: SceneryType, gender: GenderType, currentObj?: NameItem) => {
+    const names = pickUniqueNames(scenery, gender, 3, currentObj?.nameTw);
+    if (names.length === 0) return;
+    setFreeNames(names);
+    setCurrentName(names[0]);
+  }, []);
 
   const triggerGeneration = useCallback((action: () => void) => {
     if (isGenerating) return;
@@ -158,46 +239,51 @@ export default function App() {
   }, [isGenerating]);
 
   const regenerate = useCallback(() => {
-    triggerGeneration(() => setCurrentName(pickName(activeScenery, genderFilter, currentName)));
-  }, [activeScenery, genderFilter, currentName, pickName, triggerGeneration]);
+    triggerGeneration(() => refreshFreeNames(activeScenery, genderFilter, currentName));
+  }, [activeScenery, genderFilter, currentName, refreshFreeNames, triggerGeneration]);
 
   const switchScenery = useCallback((s: SceneryType) => { 
     setActiveScenery(s); 
-    triggerGeneration(() => setCurrentName(pickName(s, genderFilter))); 
-  }, [genderFilter, pickName, triggerGeneration]);
+    triggerGeneration(() => refreshFreeNames(s, genderFilter)); 
+  }, [genderFilter, refreshFreeNames, triggerGeneration]);
 
   const switchGender = useCallback((g: GenderType) => { 
     setGenderFilter(g); 
-    triggerGeneration(() => setCurrentName(pickName(activeScenery, g))); 
-  }, [activeScenery, pickName, triggerGeneration]);
+    triggerGeneration(() => refreshFreeNames(activeScenery, g)); 
+  }, [activeScenery, refreshFreeNames, triggerGeneration]);
 
   const handleDownloadClick = () => {
     if (isGenerating || !cardRef.current) return;
+    const targetCard = cardRef.current;
     setShowQR(true);
     showToast('Saving Art...');
     
     downloadTimerRef.current = setTimeout(() => {
       const loadHtml2Canvas = () => {
-        if ((window as any).html2canvas) return Promise.resolve((window as any).html2canvas);
+        if (window.html2canvas) return Promise.resolve(window.html2canvas);
         
         const existingScript = document.querySelector('script[src*="html2canvas.min.js"]');
         if (existingScript) {
-          return new Promise((resolve) => {
-            existingScript.addEventListener('load', () => resolve((window as any).html2canvas));
+          return new Promise<Html2Canvas>((resolve) => {
+            existingScript.addEventListener('load', () => {
+              if (window.html2canvas) resolve(window.html2canvas);
+            });
           });
         }
 
-        return new Promise((resolve, reject) => {
+        return new Promise<Html2Canvas>((resolve, reject) => {
           const script = document.createElement('script');
           script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
-          script.onload = () => resolve((window as any).html2canvas);
+          script.onload = () => {
+            if (window.html2canvas) resolve(window.html2canvas);
+          };
           script.onerror = reject;
           document.head.appendChild(script);
         });
       };
 
-      loadHtml2Canvas().then((html2canvas: any) => {
-        html2canvas(cardRef.current, { useCORS: true, scale: 2, backgroundColor: '#0c0a09' }).then((canvas: HTMLCanvasElement) => {
+      loadHtml2Canvas().then((html2canvas) => {
+        html2canvas(targetCard, { useCORS: true, scale: 2, backgroundColor: '#0c0a09' }).then((canvas: HTMLCanvasElement) => {
           const link = document.createElement('a');
           link.download = 'YuranYuxian-AestheticName.jpg';
           link.href = canvas.toDataURL('image/jpeg', 0.9);
@@ -231,6 +317,8 @@ export default function App() {
   const cfg = sceneryConfig[activeScenery];
   const font = fontStyles[fontStyle];
   const displayName = isSimp ? currentName.nameCn : currentName.nameTw;
+  const identityInsight = getIdentityInsight(currentName);
+  const lockedPreviewCount = 17;
 
   return (
     <>
@@ -245,15 +333,21 @@ export default function App() {
       <div className="mx-auto max-w-[375px] w-full min-h-[100dvh] h-[100dvh] overflow-hidden bg-[#EAE5DA] text-[#3A352E] font-sans flex flex-col items-center py-4 select-none relative shadow-[0_0_50px_rgba(0,0,0,0.15)]">
         {!showCheckout ? (
           <>
-            <header className="text-center w-full flex flex-col items-center shrink-0 px-8">
-              <p className="text-[11px] sm:text-xs tracking-[0.25em] text-stone-900 font-bold uppercase mb-3 whitespace-nowrap">
-                Aesthetic Traditional Name
+            <header className="text-center w-full flex flex-col items-center shrink-0 px-8 mb-3">
+              <p className="text-[8px] tracking-[0.24em] text-amber-800 font-bold uppercase mb-1">
+                Chinese Cultural Identity Generator
+              </p>
+              <h1 className="text-xl font-serif text-stone-950 leading-tight">
+                Discover Your Chinese Identity
+              </h1>
+              <p className="text-[9px] text-stone-600 leading-relaxed mt-1 max-w-[300px]">
+                More than a name ??receive meaning, pronunciation, story, and cultural insight in Chinese.
               </p>
             </header>
 
             <section className="w-full flex items-stretch gap-3 shrink-0 px-8 mb-4">
               <div className="w-[22%] relative flex flex-col items-center justify-center p-1.5 overflow-hidden bg-stone-900/5 rounded-xl border border-stone-800/10 shadow-inner">
-                <SafeImage src="/LOGO.png" alt="Yuran Yuxian" className="w-full h-full max-h-[80px] object-contain mix-blend-multiply" fallback={<div className="py-2 flex flex-col items-center justify-center h-full"><h1 className="text-sm font-semibold tracking-widest text-stone-800 font-serif" style={{ writingMode: 'vertical-rl', textOrientation: 'upright' }}>悠然餘閒</h1></div>} />
+                <SafeImage src="/LOGO.png" alt="Yuran Yuxian" className="w-full h-full max-h-[80px] object-contain mix-blend-multiply" fallback={<div className="py-2 flex flex-col items-center justify-center h-full"><h1 className="text-sm font-semibold tracking-widest text-stone-800 font-serif" style={{ writingMode: 'vertical-rl', textOrientation: 'upright' }}>?擗?</h1></div>} />
               </div>
               <div className="flex-1 flex flex-col justify-between gap-1">
                 <div className="grid grid-cols-2 gap-1.5">
@@ -302,14 +396,15 @@ export default function App() {
                   ))}
                 </div>
               </div>
+
             </section>
 
-            <section className="w-full flex-1 min-h-0 shrink-1 px-8 mb-4 flex flex-col">
-              <div ref={cardRef} className="relative w-full h-full rounded-2xl overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.3)] bg-stone-950 border border-stone-800/50 flex flex-col justify-between p-4 sm:p-5">
+            <section className="w-full flex-1 min-h-0 px-8 mb-4 flex flex-col gap-3 overflow-y-auto hide-scrollbar">
+              <div ref={cardRef} className="relative w-full min-h-[360px] rounded-2xl overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.3)] bg-stone-950 border border-stone-800/50 flex flex-col justify-between p-4 sm:p-5 shrink-0">
                 <img src={cfg.image} alt={cfg.labelEn} className="absolute inset-0 w-full h-full object-cover opacity-60" />
                 <div className={`absolute inset-0 bg-gradient-to-b ${cfg.color} via-stone-950/40 to-stone-950/95`} />
                 <div className={`absolute top-5 right-5 z-20 w-12 h-12 bg-white/95 p-1 rounded-md shadow-lg transition-opacity duration-200 ${showQR ? 'opacity-85' : 'opacity-0 pointer-events-none'}`}><img src="/qrcode.png" alt="QR" className="w-full h-full object-contain" /></div>
-                <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none overflow-hidden"><p className="text-white/10 text-2xl font-black uppercase tracking-[0.3em] whitespace-nowrap -rotate-12 select-none drop-shadow-md" style={{ fontFamily: "'Noto Serif', serif" }}>ZEN AESTHETIC NAMING</p></div>
+                <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none overflow-hidden"><p className="text-white/10 text-2xl font-black uppercase tracking-[0.3em] whitespace-nowrap -rotate-12 select-none drop-shadow-md" style={{ fontFamily: "'Noto Serif', serif" }}>CHINESE IDENTITY</p></div>
                 <RitualLoader isGenerating={isGenerating} />
                 <div className="w-full flex justify-between items-start z-10">
                   <div data-html2canvas-ignore="true" className="bg-stone-950/30 backdrop-blur-md border border-white/10 rounded-full p-0.5 flex text-[9px] shadow-sm tracking-wider uppercase">
@@ -328,28 +423,113 @@ export default function App() {
                   </div>
                   <div className="w-full flex items-stretch gap-2 transition-all duration-700 delay-300">
                     <div className={`flex-1 backdrop-blur-md bg-stone-950/60 border border-white/5 rounded-xl p-3 shadow-xl flex flex-col justify-center relative min-h-[70px] ${isGenerating ? 'opacity-0 translate-y-4' : 'opacity-100 translate-y-0'}`}>
-                      <p className="text-amber-500 text-[8px] tracking-[0.25em] uppercase mb-1 font-medium">AESTHETIC CONCEPT</p>
+                      <p className="text-amber-500 text-[8px] tracking-[0.25em] uppercase mb-1 font-medium">NAME STORY</p>
                       <p className="text-stone-200 text-[9px] leading-relaxed font-light tracking-wide" style={{ fontFamily: "'Noto Serif SC', serif" }}>{currentName.storyEn}</p>
                     </div>
                     <div className={`w-[60px] backdrop-blur-md bg-stone-950/40 border border-white/5 rounded-xl shadow-xl flex-shrink-0 flex items-center justify-center overflow-hidden opacity-85 hover:opacity-100 ${isGenerating ? 'opacity-0 translate-y-4' : 'opacity-100 translate-y-0'}`} style={{ transitionDelay: '400ms' }}><LogoTagStamp className="w-full h-full p-2" /></div>
                   </div>
-                  <div className="w-full text-center opacity-60"><p className="text-[6px] text-white/60 tracking-[0.25em] font-light uppercase">— YURAN YUXIAN • EXCLUSIVE CUSTOM —</p></div>
+                  <div className="w-full text-center opacity-60"><p className="text-[6px] text-white/60 tracking-[0.25em] font-light uppercase">YURAN YUXIAN - EXCLUSIVE CUSTOM IDENTITY</p></div>
                 </div>
+              </div>
+
+              <div className="w-full bg-white/70 border border-stone-300/70 rounded-2xl p-3 shadow-sm shrink-0">
+                <div className="flex items-center justify-between mb-2">
+                  <div>
+                    <p className="text-[8px] tracking-[0.28em] text-amber-800 font-bold uppercase">Free Identity Preview</p>
+                    <h2 className="text-sm font-serif text-stone-900">3 complete Chinese names for free</h2>
+                  </div>
+                  <span className="text-[9px] text-stone-500">3 unlocked / 20</span>
+                </div>
+                <p className="text-[9px] text-stone-600 leading-relaxed mb-3">
+                  Each free result includes the Chinese name, pinyin, basic meaning, and a short identity story.
+                </p>
+
+                <div className="space-y-2">
+                  {freeNames.map((name, index) => {
+                    const nameText = isSimp ? name.nameCn : name.nameTw;
+                    return (
+                      <button
+                        key={`${name.nameTw}-${index}`}
+                        onClick={() => setCurrentName(name)}
+                        className={`w-full text-left rounded-xl border p-3 transition-all ${currentName.nameTw === name.nameTw ? 'bg-stone-900 text-amber-50 border-stone-900 shadow-md' : 'bg-[#FDFBF7] text-stone-800 border-stone-200 hover:border-amber-700/60'}`}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <span className="w-5 h-5 rounded-full bg-amber-700/15 text-amber-800 text-[10px] flex items-center justify-center font-bold shrink-0">{index + 1}</span>
+                            <div className="min-w-0">
+                              <p className="text-xl tracking-[0.12em] whitespace-nowrap" style={{ fontFamily: font.font }}>{nameText}</p>
+                              <p className={`text-[9px] tracking-[0.18em] uppercase mt-0.5 ${currentName.nameTw === name.nameTw ? 'text-amber-100/70' : 'text-stone-500'}`}>{name.pinyin}</p>
+                            </div>
+                          </div>
+                          <span className={`text-[8px] uppercase tracking-widest shrink-0 ${currentName.nameTw === name.nameTw ? 'text-amber-200' : 'text-amber-700'}`}>Preview</span>
+                        </div>
+                        <p className={`mt-2 text-[9px] leading-relaxed line-clamp-2 ${currentName.nameTw === name.nameTw ? 'text-stone-200' : 'text-stone-600'}`}>{name.storyEn}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="w-full bg-[#FDFBF7] border border-amber-800/20 rounded-2xl p-4 shadow-sm shrink-0">
+                <p className="text-[8px] tracking-[0.28em] text-amber-800 font-bold uppercase mb-1">Why This Name?</p>
+                <h2 className="text-base font-serif text-stone-900 mb-3">
+                  Why {displayName} works as a Chinese identity
+                </h2>
+                <div className="space-y-2 text-[10px] leading-relaxed text-stone-700">
+                  <p><strong className="text-stone-950">Meaning:</strong> {identityInsight.meaning}</p>
+                  <p><strong className="text-stone-950">Cultural image:</strong> {identityInsight.imagery}</p>
+                  <p><strong className="text-stone-950">Personality symbol:</strong> {identityInsight.personality}</p>
+                  <p><strong className="text-stone-950">Best for:</strong> {identityInsight.bestFor}</p>
+                  <p><strong className="text-stone-950">Foreigner fit:</strong> {identityInsight.foreignerFit}</p>
+                </div>
+              </div>
+
+              <div className="w-full bg-stone-950 text-stone-100 rounded-2xl p-4 shadow-xl border border-stone-800 shrink-0">
+                <div className="flex items-start justify-between gap-3 mb-3">
+                  <div>
+                    <p className="text-[8px] tracking-[0.28em] text-amber-400 font-bold uppercase">+{lockedPreviewCount} Premium Names Locked</p>
+                    <h2 className="text-base font-serif text-white mt-1">Unlock your full Chinese identity report</h2>
+                    <p className="text-[9px] text-stone-400 mt-1">One-time payment. Full 20-name package and PDF download.</p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <Crown size={18} className="text-amber-400 ml-auto mb-1" />
+                    <span className="text-amber-300 text-sm font-bold">US$9.99</span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 mb-4">
+                  {[1, 2, 3].map((item) => (
+                    <div key={item} className="h-[76px] rounded-xl border border-white/10 bg-white/[0.06] p-2 overflow-hidden relative">
+                      <div className="absolute inset-0 backdrop-blur-[2px] bg-stone-950/20"></div>
+                      <div className="relative z-10 opacity-45">
+                        <div className="h-3 w-10 bg-amber-100/50 rounded mb-2"></div>
+                        <div className="h-2 w-full bg-white/30 rounded mb-1.5"></div>
+                        <div className="h-2 w-4/5 bg-white/20 rounded"></div>
+                      </div>
+                      <div className="absolute inset-0 flex items-center justify-center text-[9px] tracking-widest text-amber-200 font-bold uppercase">Locked</div>
+                    </div>
+                  ))}
+                </div>
+
+                <ul className="text-[10px] text-stone-300 space-y-2 mb-4">
+                  <li className="flex items-start gap-2"><Check size={12} className="text-amber-400 shrink-0 mt-0.5" /> 20 Chinese names with English meaning and pinyin</li>
+                  <li className="flex items-start gap-2"><Check size={12} className="text-amber-400 shrink-0 mt-0.5" /> Cultural analysis, personality symbols, and name stories</li>
+                  <li className="flex items-start gap-2"><Check size={12} className="text-amber-400 shrink-0 mt-0.5" /> PDF identity report for study, travel, business, or Chinese learning</li>
+                </ul>
+
+                <button
+                  onClick={() => setShowCheckout(true)}
+                  disabled={isGenerating}
+                  className="w-full bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 text-stone-950 py-3 rounded-xl text-[10px] font-bold tracking-[0.16em] uppercase flex items-center justify-center gap-2 shadow-lg active:scale-[0.98] disabled:opacity-70"
+                >
+                  <Crown size={14} /> Unlock 20 names + PDF for US$9.99
+                </button>
               </div>
             </section>
 
             <footer className="w-full grid grid-cols-12 gap-2 shrink-0 px-8 mb-3">
-              <button onClick={regenerate} disabled={isGenerating} className="col-span-3 flex flex-col items-center justify-center gap-0.5 py-2.5 rounded-xl bg-white border border-stone-300 text-stone-700 text-[8px] font-medium tracking-wider uppercase shadow-sm active:scale-[0.98] disabled:opacity-50"><RefreshCw size={12} className={`text-amber-700 ${isGenerating ? 'animate-spin' : ''}`} />REGENERATE</button>
-              
-              <button 
-                onClick={() => setShowCheckout(true)} 
-                disabled={isGenerating} 
-                className="col-span-6 flex flex-col items-center justify-center gap-0.5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 text-stone-950 text-[9px] font-bold tracking-widest uppercase shadow-lg active:scale-[0.98] hover:brightness-105 border border-amber-600/50 disabled:opacity-80"
-              >
-                <Crown size={12} className="text-white animate-pulse" />UNLOCK PREMIUM
-              </button>
-              
-              <button onClick={handleDownloadClick} disabled={isGenerating} className="col-span-3 flex flex-col items-center justify-center gap-0.5 py-2.5 rounded-xl bg-[#3A352E] text-[#EAE5DA] text-[8px] font-medium tracking-wider uppercase shadow-md active:scale-[0.98] disabled:opacity-50"><Download size={12} className="text-amber-500" />SAVE ART</button>
+              <button onClick={regenerate} disabled={isGenerating} className="col-span-6 flex flex-col items-center justify-center gap-0.5 py-2.5 rounded-xl bg-white border border-stone-300 text-stone-700 text-[8px] font-medium tracking-wider uppercase shadow-sm active:scale-[0.98] disabled:opacity-50"><RefreshCw size={12} className={`text-amber-700 ${isGenerating ? 'animate-spin' : ''}`} />REGENERATE</button>
+              <button onClick={handleDownloadClick} disabled={isGenerating} className="col-span-6 flex flex-col items-center justify-center gap-0.5 py-2.5 rounded-xl bg-[#3A352E] text-[#EAE5DA] text-[8px] font-medium tracking-wider uppercase shadow-md active:scale-[0.98] disabled:opacity-50"><Download size={12} className="text-amber-500" />SAVE ART</button>
             </footer>
 
             <div className="w-full px-8 shrink-0 pb-1">
@@ -406,7 +586,7 @@ export default function App() {
                           <div className="w-[70px] aspect-[9/19] rounded-[10px] bg-stone-50 border border-stone-200 shadow-md flex flex-col items-center justify-center p-2 text-center relative overflow-hidden">
                               <span className="text-stone-800 text-[16px] font-bold mb-2 tracking-widest whitespace-nowrap" style={{ fontFamily: font.font }}>{displayName}</span>
                               <div className="text-[3px] text-stone-400 leading-tight">Peace is an endless resort...</div>
-                              <div className="absolute bottom-2 w-full text-center text-[3px] text-stone-300">悠然餘閒</div>
+                              <div className="absolute bottom-2 w-full text-center text-[3px] text-stone-300">?擗?</div>
                           </div>
                           <span className="text-[6px] text-stone-400 uppercase tracking-widest font-medium">Wallpaper</span>
                         </div>
@@ -498,8 +678,7 @@ export default function App() {
                           <div className="w-1/2 h-full px-3 py-4 flex flex-col justify-start bg-[#FAF9F6] relative">
                               <span className="text-[4px] text-[#b22222] uppercase tracking-widest mb-2 font-bold text-right w-full">Chapter II. Poetry</span>
                               <div className="text-[6px] text-stone-800 leading-loose font-medium mb-1.5 pt-1" style={{ fontFamily: "'Noto Serif TC', serif" }}>
-                                風過疏竹不留聲，<br/>流沙萬里任平生。
-                              </div>
+                                憸券??姘銝??莎?<br/>瘚??祇?隞餃像??                              </div>
                               <div className="text-[3.5px] text-stone-500 leading-tight">Wind sweeps the bamboo...</div>
                               
                               <div className="absolute bottom-2 right-2 w-[22px] h-[22px] opacity-50 pointer-events-none mix-blend-multiply">

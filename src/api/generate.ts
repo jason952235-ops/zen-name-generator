@@ -1,6 +1,21 @@
 // 檔案路徑： /api/generate.ts
 import OpenAI from 'openai';
 
+interface ApiRequest {
+  method?: string;
+  body: {
+    name?: string;
+    scenery?: string;
+    concept?: string;
+  };
+}
+
+interface ApiResponse {
+  status: (code: number) => {
+    json: (data: unknown) => unknown;
+  };
+}
+
 // 初始化 OpenAI 客戶端 (會自動讀取 process.env.OPENAI_API_KEY)
 const openai = new OpenAI();
 
@@ -35,7 +50,7 @@ JSON 結構如下：
 `;
 
 // Vercel Serverless Function 的標準寫法
-export default async function handler(req: any, res: any) {
+export default async function handler(req: ApiRequest, res: ApiResponse) {
   // 1. 安全性檢查：只允許 POST 請求
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed. Please use POST.' });
