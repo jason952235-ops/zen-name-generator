@@ -44,10 +44,13 @@ type Html2Canvas = (
 declare global {
   interface Window {
     html2canvas?: Html2Canvas;
+    dataLayer?: unknown[];
+    gtag?: (...args: unknown[]) => void;
   }
 }
 
 const initialUniqueIpId = `IP ID: YR-${Math.floor(10000 + Math.random() * 90000)}`;
+const gaMeasurementId = import.meta.env.VITE_GA_MEASUREMENT_ID as string | undefined;
 
 function getNamePool(scenery: SceneryType, gender: GenderType) {
   const exactPool = nameDatabase.filter((name) => name.scenery === scenery && name.gender === gender);
@@ -109,6 +112,28 @@ function getIdentityInsight(name: NameItem) {
   };
 }
 
+function initAnalytics() {
+  if (!gaMeasurementId || window.gtag) return;
+
+  window.dataLayer = window.dataLayer || [];
+  window.gtag = (...args: unknown[]) => {
+    window.dataLayer?.push(args);
+  };
+
+  const script = document.createElement('script');
+  script.async = true;
+  script.src = `https://www.googletagmanager.com/gtag/js?id=${gaMeasurementId}`;
+  document.head.appendChild(script);
+
+  window.gtag('js', new Date());
+  window.gtag('config', gaMeasurementId, { send_page_view: false });
+}
+
+function trackEvent(eventName: string, params: Record<string, unknown> = {}) {
+  if (!gaMeasurementId || !window.gtag) return;
+  window.gtag('event', eventName, params);
+}
+
 const sceneryConfig: Record<SceneryType, SceneryConfigItem> = {
   bamboo: { image: 'https://images.unsplash.com/photo-1504618223053-559bdef9dd5a?q=80&w=1000&auto=format&fit=crop', localPath: '/1.jpg', labelTw: 'Bamboo', labelEn: 'Bamboo', color: 'from-green-950/85 to-emerald-900/40', tag: 'B' },
   jiangnan: { image: 'https://images.unsplash.com/photo-1528164344705-47542687000d?q=80&w=1000&auto=format&fit=crop', localPath: '/2.jpg', labelTw: 'Jiangnan', labelEn: 'Jiangnan', color: 'from-blue-950/85 to-cyan-900/40', tag: 'J' },
@@ -155,7 +180,8 @@ const RitualLoader = ({ isGenerating }: { isGenerating: boolean }) => (
   </div>
 );
 
-const initialFreeNameSet = pickUniqueNames('bamboo', 'neutral', 3);
+const initialPremiumNameSet = pickUniqueNames('bamboo', 'neutral', 20);
+const initialFreeNameSet = initialPremiumNameSet.slice(0, 3);
 const fallbackName: NameItem = {
   scenery: 'bamboo',
   gender: 'neutral',
@@ -175,12 +201,17 @@ export default function App() {
   const [freeNames, setFreeNames] = useState<NameItem[]>(() => {
     return initialFreeNameSet.length > 0 ? initialFreeNameSet : [initialDisplayName];
   });
+  const [premiumNames, setPremiumNames] = useState<NameItem[]>(() => {
+    return initialPremiumNameSet.length > 0 ? initialPremiumNameSet : [initialDisplayName];
+  });
 
   const [fontStyle, setFontStyle] = useState<string>('cursive');
   const [isSimp, setIsSimp] = useState<boolean>(false);
   const [isGenerating, setIsGenerating] = useState<boolean>(true); 
-  const [showCheckout, setShowCheckout] = useState<boolean>(false); 
+  const [, setShowCheckout] = useState<boolean>(false);
   const [showQR, setShowQR] = useState<boolean>(false);
+  const [isPremiumUnlocked, setIsPremiumUnlocked] = useState<boolean>(false);
+  const [isStripeLoading, setIsStripeLoading] = useState<boolean>(false);
   
   const [activeTier, setActiveTier] = useState<number>(1);
   const [toastMessage, setToastMessage] = useState<string>('');
@@ -188,26 +219,6 @@ export default function App() {
   const [uniqueIpId] = useState(initialUniqueIpId);
   const cardRef = useRef<HTMLDivElement>(null);
   const downloadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // ??靽桀儔敺? Gumroad 蝯董?拳頛?摩
-  useEffect(() => {
-    if (showCheckout) {
-      const scriptId = 'gumroad-overlay-script';
-      
-      // 1. 雿輻?函?霈撠銝衣宏?方?璅惜
-      const existingScript = document.getElementById(scriptId);
-      if (existingScript) {
-        existingScript.remove();
-      }
-      
-      // 重新載入 Gumroad 結帳腳本。
-      const newScript = document.createElement('script');
-      newScript.id = scriptId;
-      newScript.src = "https://gumroad.com/js/gumroad.js";
-      newScript.async = true;
-      document.body.appendChild(newScript);
-    }
-  }, [showCheckout]);
 
   useEffect(() => {
     const timer = setTimeout(() => setIsGenerating(false), 2800);
@@ -222,12 +233,77 @@ export default function App() {
     setTimeout(() => setToastMessage(''), 3000);
   }, []);
 
+  useEffect(() => {
+    initAnalytics();
+    trackEvent('page_view', { page_path: window.location.pathname });
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+    const params = new URLSearchParams(window.location.search);
+    const sessionId = params.get('session_id');
+
+    async function verifyPayment() {
+      if (params.get('premium') !== 'success' || !sessionId) return;
+
+      try {
+        const response = await fetch(`/api/verify-checkout-session?session_id=${encodeURIComponent(sessionId)}`);
+        const data = await response.json();
+
+        if (!isMounted) return;
+
+        if (response.ok && data.paid === true) {
+          setIsPremiumUnlocked(true);
+          trackEvent('payment_success', {
+            amount_total: data.amount_total,
+            currency: data.currency
+          });
+          showToast('Premium unlocked. Your full identity report is ready.');
+        } else {
+          showToast('Payment was not verified. Premium remains locked.');
+        }
+      } catch {
+        if (isMounted) {
+          showToast('Payment verification failed. Please refresh after payment is complete.');
+        }
+      }
+    }
+
+    verifyPayment();
+
+    if (params.get('premium') === 'cancelled') {
+      setTimeout(() => showToast('Payment cancelled. Your free names are still available.'), 0);
+    }
+
+    return () => {
+      isMounted = false;
+    };
+  }, [showToast]);
+
   const refreshFreeNames = useCallback((scenery: SceneryType, gender: GenderType, currentObj?: NameItem) => {
-    const names = pickUniqueNames(scenery, gender, 3, currentObj?.nameTw);
+    const names = pickUniqueNames(scenery, gender, 20, currentObj?.nameTw);
     if (names.length === 0) return;
-    setFreeNames(names);
+    setPremiumNames(names);
+    setFreeNames(names.slice(0, 3));
     setCurrentName(names[0]);
   }, []);
+
+  const startStripeCheckout = useCallback(async () => {
+    setIsStripeLoading(true);
+    trackEvent('premium_clicked', { price: 9.99, currency: 'USD' });
+    try {
+      const response = await fetch('/api/create-checkout-session', { method: 'POST' });
+      const data = await response.json();
+      if (!response.ok || !data.url) {
+        throw new Error('Stripe checkout failed.');
+      }
+      trackEvent('checkout_started', { price: 9.99, currency: 'USD' });
+      window.location.href = data.url;
+    } catch {
+      showToast('Stripe checkout is not ready. Please check payment settings.');
+      setIsStripeLoading(false);
+    }
+  }, [showToast]);
 
   const triggerGeneration = useCallback((action: () => void) => {
     if (isGenerating) return;
@@ -239,6 +315,10 @@ export default function App() {
   }, [isGenerating]);
 
   const regenerate = useCallback(() => {
+    trackEvent('generate_clicked', {
+      scenery: activeScenery,
+      gender: genderFilter
+    });
     triggerGeneration(() => refreshFreeNames(activeScenery, genderFilter, currentName));
   }, [activeScenery, genderFilter, currentName, refreshFreeNames, triggerGeneration]);
 
@@ -254,6 +334,9 @@ export default function App() {
 
   const handleDownloadClick = () => {
     if (isGenerating || !cardRef.current) return;
+    if (isPremiumUnlocked) {
+      trackEvent('pdf_downloaded', { report_type: 'premium_identity_report' });
+    }
     const targetCard = cardRef.current;
     setShowQR(true);
     showToast('Saving Art...');
@@ -319,6 +402,7 @@ export default function App() {
   const displayName = isSimp ? currentName.nameCn : currentName.nameTw;
   const identityInsight = getIdentityInsight(currentName);
   const lockedPreviewCount = 17;
+  const useStripeCheckoutOnly = true;
 
   return (
     <>
@@ -331,7 +415,7 @@ export default function App() {
       </div>
 
       <div className="mx-auto max-w-[375px] w-full min-h-[100dvh] h-[100dvh] overflow-hidden bg-[#EAE5DA] text-[#3A352E] font-sans flex flex-col items-center py-4 select-none relative shadow-[0_0_50px_rgba(0,0,0,0.15)]">
-        {!showCheckout ? (
+        {useStripeCheckoutOnly ? (
           <>
             <header className="text-center w-full flex flex-col items-center shrink-0 px-8 mb-3">
               <p className="text-[8px] tracking-[0.24em] text-amber-800 font-bold uppercase mb-1">
@@ -484,6 +568,43 @@ export default function App() {
                 </div>
               </div>
 
+              {isPremiumUnlocked ? (
+              <div className="w-full bg-stone-950 text-stone-100 rounded-2xl p-4 shadow-xl border border-amber-500/40 shrink-0">
+                <div className="flex items-start justify-between gap-3 mb-3">
+                  <div>
+                    <p className="text-[8px] tracking-[0.28em] text-amber-400 font-bold uppercase">Premium Results Unlocked</p>
+                    <h2 className="text-base font-serif text-white mt-1">Your full 20-name identity report</h2>
+                    <p className="text-[9px] text-stone-400 mt-1">Review every name, then choose the one you want to use in China.</p>
+                  </div>
+                  <Check size={18} className="text-emerald-400 shrink-0" />
+                </div>
+
+                <div className="space-y-2 max-h-[360px] overflow-y-auto hide-scrollbar pr-1">
+                  {premiumNames.map((name, index) => {
+                    const nameText = isSimp ? name.nameCn : name.nameTw;
+                    return (
+                      <button
+                        key={`${name.nameTw}-premium-${index}`}
+                        onClick={() => setCurrentName(name)}
+                        className={`w-full text-left rounded-xl border p-3 transition-all ${currentName.nameTw === name.nameTw ? 'bg-amber-400 text-stone-950 border-amber-300 shadow-md' : 'bg-white/[0.06] text-stone-100 border-white/10 hover:border-amber-400/70'}`}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <span className="w-6 h-6 rounded-full bg-stone-950/30 text-[10px] flex items-center justify-center font-bold shrink-0">{index + 1}</span>
+                            <div className="min-w-0">
+                              <p className="text-lg tracking-[0.12em] whitespace-nowrap" style={{ fontFamily: font.font }}>{nameText}</p>
+                              <p className={`text-[9px] tracking-[0.18em] uppercase mt-0.5 ${currentName.nameTw === name.nameTw ? 'text-stone-800' : 'text-stone-400'}`}>{name.pinyin}</p>
+                            </div>
+                          </div>
+                          <span className="text-[8px] uppercase tracking-widest shrink-0">Full</span>
+                        </div>
+                        <p className={`mt-2 text-[9px] leading-relaxed line-clamp-2 ${currentName.nameTw === name.nameTw ? 'text-stone-800' : 'text-stone-300'}`}>{name.storyEn}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              ) : (
               <div className="w-full bg-stone-950 text-stone-100 rounded-2xl p-4 shadow-xl border border-stone-800 shrink-0">
                 <div className="flex items-start justify-between gap-3 mb-3">
                   <div>
@@ -518,13 +639,14 @@ export default function App() {
                 </ul>
 
                 <button
-                  onClick={() => setShowCheckout(true)}
-                  disabled={isGenerating}
+                  onClick={startStripeCheckout}
+                  disabled={isGenerating || isStripeLoading}
                   className="w-full bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 text-stone-950 py-3 rounded-xl text-[10px] font-bold tracking-[0.16em] uppercase flex items-center justify-center gap-2 shadow-lg active:scale-[0.98] disabled:opacity-70"
                 >
-                  <Crown size={14} /> Unlock 20 names + PDF for US$9.99
+                  <Crown size={14} /> {isStripeLoading ? 'Opening secure checkout...' : 'Unlock 20 names + PDF for US$9.99'}
                 </button>
               </div>
+              )}
             </section>
 
             <footer className="w-full grid grid-cols-12 gap-2 shrink-0 px-8 mb-3">
@@ -604,13 +726,9 @@ export default function App() {
                           <li className="flex items-center gap-2"><Check size={12} className="text-emerald-600 shrink-0"/> High-Res Mobile Wallpaper</li>
                         </ul>
                         
-                        <a 
-                          href="https://jasonwave356.gumroad.com/l/zvhwrw?wanted=true" 
-                          data-gumroad-overlay-checkout="true"
-                          className="w-full bg-[#1C1A17] text-[#FDFBF7] py-2.5 rounded-xl text-[10px] font-bold tracking-[0.15em] uppercase flex items-center justify-center gap-2 hover:bg-black transition-colors shadow-md"
-                        >
-                          <CreditCard size={14}/> Unlock for $1.99
-                        </a>
+                        <button className="w-full bg-[#1C1A17] text-[#FDFBF7] py-2.5 rounded-xl text-[10px] font-bold tracking-[0.15em] uppercase flex items-center justify-center gap-2 shadow-md opacity-60 cursor-not-allowed" disabled>
+                          <CreditCard size={14}/> Disabled
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -651,13 +769,9 @@ export default function App() {
                           <li className="flex items-start gap-2"><Check size={12} className="text-[#F5A623] shrink-0 mt-0.5"/> <div><strong className="text-white">Gallery Art:</strong> Framing-ready PDF.</div></li>
                         </ul>
                         
-                        <a 
-                          href="https://jasonwave356.gumroad.com/l/rzlgdp?wanted=true" 
-                          data-gumroad-overlay-checkout="true"
-                          className="w-full bg-[#F5A623] text-[#1A1816] py-2.5 rounded-xl text-[10px] font-bold tracking-[0.15em] uppercase flex items-center justify-center gap-2 hover:bg-[#ffb53e] transition-colors shadow-[0_4px_15px_rgba(245,166,35,0.25)]"
-                        >
-                          <CreditCard size={14}/> Unlock for $4.99
-                        </a>
+                        <button className="w-full bg-[#F5A623] text-[#1A1816] py-2.5 rounded-xl text-[10px] font-bold tracking-[0.15em] uppercase flex items-center justify-center gap-2 shadow-[0_4px_15px_rgba(245,166,35,0.25)] opacity-60 cursor-not-allowed" disabled>
+                          <CreditCard size={14}/> Disabled
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -702,13 +816,9 @@ export default function App() {
                           <li className="flex items-start gap-2"><Check size={12} className="text-emerald-600 shrink-0 mt-0.5"/> <div><strong className="text-stone-800">AI Zen Poetry:</strong> Exclusive bilingual poem generated for you.</div></li>
                         </ul>
                         
-                        <a 
-                          href="https://jasonwave356.gumroad.com/l/zen-enlightenment?wanted=true" 
-                          data-gumroad-overlay-checkout="true"
-                          className="w-full bg-[#1C1A17] text-[#FDFBF7] py-2.5 rounded-xl text-[10px] font-bold tracking-[0.15em] uppercase flex items-center justify-center gap-2 hover:bg-black transition-colors shadow-md disabled:opacity-80"
-                        >
-                          <CreditCard size={14}/> Unlock for $9.99
-                        </a>
+                        <button className="w-full bg-[#1C1A17] text-[#FDFBF7] py-2.5 rounded-xl text-[10px] font-bold tracking-[0.15em] uppercase flex items-center justify-center gap-2 shadow-md opacity-60 cursor-not-allowed" disabled>
+                          <CreditCard size={14}/> Disabled
+                        </button>
 
                         <div className="mt-3 text-center">
                           <button 
@@ -731,7 +841,7 @@ export default function App() {
                 <div className="text-[9px] font-mono tracking-widest opacity-60 uppercase">{uniqueIpId}</div>
                 <div className="flex flex-col items-center gap-0.5">
                   <span className="text-[8px] tracking-[0.2em] uppercase font-light">Secured By</span>
-                  <span className="text-[10px] font-medium tracking-wide">Gumroad</span>
+                  <span className="text-[10px] font-medium tracking-wide">Stripe</span>
                 </div>
               </div>
 
