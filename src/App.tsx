@@ -350,7 +350,7 @@ export default function App() {
   const font = fontStyles[fontStyle];
   const displayName = isSimp ? currentName.nameCn : currentName.nameTw;
   const identityInsight = getIdentityInsight(currentName);
-  const lockedPreviewCount = 17;
+  const lockedPreviewCount = 7;
   const useMainCheckoutOnly = true;
 
   return (
@@ -557,13 +557,13 @@ export default function App() {
               <div className="w-full bg-stone-950 text-stone-100 rounded-2xl p-4 shadow-xl border border-stone-800 shrink-0">
                 <div className="flex items-start justify-between gap-3 mb-3">
                   <div>
-                    <p className="text-[8px] tracking-[0.28em] text-amber-400 font-bold uppercase">+{lockedPreviewCount} Premium Names Locked</p>
-                    <h2 className="text-base font-serif text-white mt-1">Unlock your full Chinese identity report</h2>
-                    <p className="text-[9px] text-stone-400 mt-1">One-time payment. Full 20-name package and PDF download.</p>
+                    <p className="text-[8px] tracking-[0.28em] text-amber-400 font-bold uppercase">+{lockedPreviewCount} Starter Names Locked</p>
+                    <h2 className="text-base font-serif text-white mt-1">Chinese Name Starter Pack</h2>
+                    <p className="text-[9px] text-stone-400 mt-1">10 personalized Chinese names with Best Match recommendation.</p>
                   </div>
                   <div className="text-right shrink-0">
                     <Crown size={18} className="text-amber-400 ml-auto mb-1" />
-                    <span className="text-amber-300 text-sm font-bold">US$9.99</span>
+                    <span className="text-amber-300 text-sm font-bold">US$4.99</span>
                   </div>
                 </div>
 
@@ -582,9 +582,9 @@ export default function App() {
                 </div>
 
                 <ul className="text-[10px] text-stone-300 space-y-2 mb-4">
-                  <li className="flex items-start gap-2"><Check size={12} className="text-amber-400 shrink-0 mt-0.5" /> 20 Chinese names with English meaning and pinyin</li>
-                  <li className="flex items-start gap-2"><Check size={12} className="text-amber-400 shrink-0 mt-0.5" /> Cultural analysis, personality symbols, and name stories</li>
-                  <li className="flex items-start gap-2"><Check size={12} className="text-amber-400 shrink-0 mt-0.5" /> PDF identity report for study, travel, business, or Chinese learning</li>
+                  <li className="flex items-start gap-2"><Check size={12} className="text-amber-400 shrink-0 mt-0.5" /> 10 personalized Chinese names</li>
+                  <li className="flex items-start gap-2"><Check size={12} className="text-amber-400 shrink-0 mt-0.5" /> Pinyin, English meanings, and name stories</li>
+                  <li className="flex items-start gap-2"><Check size={12} className="text-amber-400 shrink-0 mt-0.5" /> Best Match recommendation for your Chinese identity</li>
                 </ul>
 
                 <button
@@ -592,7 +592,7 @@ export default function App() {
                   disabled={isGenerating}
                   className="w-full bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 text-stone-950 py-3 rounded-xl text-[10px] font-bold tracking-[0.16em] uppercase flex items-center justify-center gap-2 shadow-lg active:scale-[0.98] disabled:opacity-70"
                 >
-                  <Crown size={14} /> Unlock 20 Names + PDF ($4.99)
+                  <Crown size={14} /> Unlock Starter Pack – US$4.99
                 </button>
               </div>
               )}
@@ -755,7 +755,7 @@ export default function App() {
                       <div className="border-t border-stone-200 pt-4">
                         <div className="flex justify-between items-baseline mb-0.5">
                           <h3 className="text-xs tracking-widest font-bold uppercase text-stone-800">The Enlightenment</h3>
-                          <span className="font-bold text-base text-stone-800">$9.99</span>
+                          <span className="font-bold text-base text-stone-800">$4.99</span>
                         </div>
                         <p className="text-[9px] text-stone-500 italic mb-4">Ultimate Personal IP & Philosophy.</p>
                         
