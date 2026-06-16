@@ -1,5 +1,5 @@
 ﻿import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Volume2, RefreshCw, Download, Crown, ArrowLeft, Check, CreditCard, BookOpen } from 'lucide-react';
+import { Volume2, RefreshCw, Download, Crown, ArrowLeft, Check, CreditCard } from 'lucide-react';
 import { nameDatabase } from './names';
 
 const hideScrollbarStyle = `
@@ -350,7 +350,7 @@ export default function App() {
   const font = fontStyles[fontStyle];
   const displayName = isSimp ? currentName.nameCn : currentName.nameTw;
   const identityInsight = getIdentityInsight(currentName);
-  const lockedPreviewCount = 7;
+  const lockedPreviewCount = 17;
   const useMainCheckoutOnly = true;
 
   return (
@@ -557,13 +557,29 @@ export default function App() {
               <div className="w-full bg-stone-950 text-stone-100 rounded-2xl p-4 shadow-xl border border-stone-800 shrink-0">
                 <div className="flex items-start justify-between gap-3 mb-3">
                   <div>
-                    <p className="text-[8px] tracking-[0.28em] text-amber-400 font-bold uppercase">+{lockedPreviewCount} Starter Names Locked</p>
-                    <h2 className="text-base font-serif text-white mt-1">Chinese Name Starter Pack</h2>
-                    <p className="text-[9px] text-stone-400 mt-1">10 personalized Chinese names with Best Match recommendation.</p>
+                    <p className="text-[8px] tracking-[0.28em] text-amber-400 font-bold uppercase">+{lockedPreviewCount} Personalized Names Locked</p>
+                    <h2 className="text-base font-serif text-white mt-1">Your Personalized Chinese Name Pack</h2>
+                    <p className="text-[9px] text-stone-400 mt-1">20 personalized Chinese names with Pinyin, meanings, and name stories.</p>
                   </div>
                   <div className="text-right shrink-0">
                     <Crown size={18} className="text-amber-400 ml-auto mb-1" />
                     <span className="text-amber-300 text-sm font-bold">US$4.99</span>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-amber-400/25 bg-white/[0.06] p-3 mb-4">
+                  <p className="text-[8px] tracking-[0.24em] text-amber-300 font-bold uppercase mb-2">Example Name</p>
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-2xl text-white tracking-[0.18em]" style={{ fontFamily: font.font }}>悠簡</p>
+                      <p className="text-[10px] text-stone-300 tracking-[0.14em] mt-1">Yōu Jiǎn</p>
+                    </div>
+                    <div className="text-right max-w-[160px]">
+                      <p className="text-[8px] text-amber-300 uppercase tracking-widest">Meaning:</p>
+                      <p className="text-[10px] text-white mb-2">Elegant Simplicity</p>
+                      <p className="text-[8px] text-amber-300 uppercase tracking-widest">Story:</p>
+                      <p className="text-[9px] text-stone-300 leading-relaxed">A thoughtful person who values wisdom, clarity, and quiet confidence.</p>
+                    </div>
                   </div>
                 </div>
 
@@ -582,9 +598,10 @@ export default function App() {
                 </div>
 
                 <ul className="text-[10px] text-stone-300 space-y-2 mb-4">
-                  <li className="flex items-start gap-2"><Check size={12} className="text-amber-400 shrink-0 mt-0.5" /> 10 personalized Chinese names</li>
-                  <li className="flex items-start gap-2"><Check size={12} className="text-amber-400 shrink-0 mt-0.5" /> Pinyin, English meanings, and name stories</li>
-                  <li className="flex items-start gap-2"><Check size={12} className="text-amber-400 shrink-0 mt-0.5" /> Best Match recommendation for your Chinese identity</li>
+                  <li className="flex items-start gap-2"><Check size={12} className="text-amber-400 shrink-0 mt-0.5" /> 20 Personalized Chinese Names</li>
+                  <li className="flex items-start gap-2"><Check size={12} className="text-amber-400 shrink-0 mt-0.5" /> Pinyin Pronunciation</li>
+                  <li className="flex items-start gap-2"><Check size={12} className="text-amber-400 shrink-0 mt-0.5" /> English Meanings</li>
+                  <li className="flex items-start gap-2"><Check size={12} className="text-amber-400 shrink-0 mt-0.5" /> Unique Name Stories</li>
                 </ul>
 
                 <button
@@ -592,7 +609,7 @@ export default function App() {
                   disabled={isGenerating}
                   className="w-full bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 text-stone-950 py-3 rounded-xl text-[10px] font-bold tracking-[0.16em] uppercase flex items-center justify-center gap-2 shadow-lg active:scale-[0.98] disabled:opacity-70"
                 >
-                  <Crown size={14} /> Unlock Starter Pack – US$4.99
+                  <Crown size={14} /> Unlock Name Pack – US$4.99
                 </button>
               </div>
               )}
@@ -715,7 +732,7 @@ export default function App() {
                         <ul className="text-[10px] text-stone-300 space-y-2 mb-5 min-h-[60px]">
                           <li className="flex items-center gap-2"><Check size={12} className="text-[#F5A623] shrink-0"/> Includes $1.99 Scroll</li>
                           <li className="flex items-start gap-2"><Check size={12} className="text-[#F5A623] shrink-0 mt-0.5"/> <div><strong className="text-white">Tattoo Stencil:</strong> Transparent PNG.</div></li>
-                          <li className="flex items-start gap-2"><Check size={12} className="text-[#F5A623] shrink-0 mt-0.5"/> <div><strong className="text-white">Gallery Art:</strong> Framing-ready PDF.</div></li>
+                          <li className="flex items-start gap-2"><Check size={12} className="text-[#F5A623] shrink-0 mt-0.5"/> <div><strong className="text-white">Gallery Art:</strong> Framing-ready artwork.</div></li>
                         </ul>
                         
                         <button className="w-full bg-[#F5A623] text-[#1A1816] py-2.5 rounded-xl text-[10px] font-bold tracking-[0.15em] uppercase flex items-center justify-center gap-2 shadow-[0_4px_15px_rgba(245,166,35,0.25)] opacity-60 cursor-not-allowed" disabled>
@@ -749,7 +766,7 @@ export default function App() {
                               </div>
                           </div>
                         </div>
-                        <span className="text-[6px] text-stone-400 uppercase tracking-widest mt-3 font-medium flex items-center gap-1"><BookOpen size={8}/> Personal Zen Booklet (PDF)</span>
+                        <span className="text-[6px] text-stone-400 uppercase tracking-widest mt-3 font-medium flex items-center gap-1">Personal Zen Story</span>
                       </div>
 
                       <div className="border-t border-stone-200 pt-4">
