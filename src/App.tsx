@@ -85,8 +85,22 @@ function getStoredFontStyle() {
   return stored && Object.keys(fontStyles).includes(stored) ? stored : 'cursive';
 }
 
-function getStoredPremiumUnlocked() {
-  return getStoredValue('premiumUnlocked') === 'true';
+function getStoredNamePack() {
+  const stored = getStoredValue('pendingNamePack');
+  if (!stored) return null;
+
+  try {
+    const parsed = JSON.parse(stored) as NameItem[];
+    if (!Array.isArray(parsed) || parsed.length === 0) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function storePendingNamePack(names: NameItem[]) {
+  if (names.length === 0) return;
+  setStoredValue('pendingNamePack', JSON.stringify(names));
 }
 
 function getNamePool(scenery: SceneryType, gender: GenderType) {
@@ -219,7 +233,8 @@ const RitualLoader = ({ isGenerating }: { isGenerating: boolean }) => (
 
 const initialScenery = getStoredScenery();
 const initialGender = getStoredGender();
-const initialPremiumNameSet = pickUniqueNames(initialScenery, initialGender, 20);
+const storedNamePack = getStoredNamePack();
+const initialPremiumNameSet = storedNamePack || pickUniqueNames(initialScenery, initialGender, 20);
 const initialFreeNameSet = initialPremiumNameSet.slice(0, 3);
 const fallbackName: NameItem = {
   scenery: 'bamboo',
@@ -249,14 +264,14 @@ export default function App() {
   const [isGenerating, setIsGenerating] = useState<boolean>(true); 
   const [, setShowCheckout] = useState<boolean>(false);
   const [showQR, setShowQR] = useState<boolean>(false);
-  const [isPremiumUnlocked, setIsPremiumUnlocked] = useState<boolean>(() => getStoredPremiumUnlocked());
+  const [isPremiumUnlocked, setIsPremiumUnlocked] = useState<boolean>(false);
   
   const [activeTier, setActiveTier] = useState<number>(1);
   const [toastMessage, setToastMessage] = useState<string>('');
-  const [licenseKey, setLicenseKey] = useState<string>('');
-  const [isVerifyingLicense, setIsVerifyingLicense] = useState<boolean>(false);
-  const [licenseMessage, setLicenseMessage] = useState<string>('');
-  const [licenseError, setLicenseError] = useState<string>('');
+  const [receiptInfo, setReceiptInfo] = useState<string>('');
+  const [isVerifyingPurchase, setIsVerifyingPurchase] = useState<boolean>(false);
+  const [purchaseMessage, setPurchaseMessage] = useState<string>('');
+  const [purchaseError, setPurchaseError] = useState<string>('');
 
   const [uniqueIpId] = useState(initialUniqueIpId);
   const cardRef = useRef<HTMLDivElement>(null);
@@ -287,65 +302,71 @@ export default function App() {
   }, [activeScenery, genderFilter, fontStyle]);
 
   useEffect(() => {
-    if (isPremiumUnlocked) {
-      setStoredValue('premiumUnlocked', 'true');
-    }
-  }, [isPremiumUnlocked]);
+    storePendingNamePack(premiumNames);
+  }, [premiumNames]);
 
   const refreshFreeNames = useCallback((scenery: SceneryType, gender: GenderType, currentObj?: NameItem) => {
     const names = pickUniqueNames(scenery, gender, 20, currentObj?.nameTw);
     if (names.length === 0) return;
     setPremiumNames(names);
+    storePendingNamePack(names);
     setFreeNames(names.slice(0, 3));
     setCurrentName(names[0]);
   }, []);
 
   const openGumroadCheckout = useCallback(() => {
+    storePendingNamePack(premiumNames);
     trackEvent('premium_clicked', { price: 4.99, currency: 'USD' });
     trackEvent('checkout_started', { price: 4.99, currency: 'USD' });
     window.open(
       "https://jasonwave356.gumroad.com/l/rzlgdp",
       "_blank"
     );
-  }, []);
+  }, [premiumNames]);
 
-  const verifyLicenseKey = useCallback(async () => {
-    const trimmedLicenseKey = licenseKey.trim();
-    setLicenseMessage('');
-    setLicenseError('');
+  const verifyPurchase = useCallback(async () => {
+    const trimmedReceiptInfo = receiptInfo.trim();
+    setPurchaseMessage('');
+    setPurchaseError('');
 
-    if (!trimmedLicenseKey) {
-      setLicenseError('Please enter your Gumroad license key.');
+    if (!trimmedReceiptInfo) {
+      setPurchaseError('Please paste your Gumroad order ID or receipt information.');
       return;
     }
 
-    setIsVerifyingLicense(true);
+    setIsVerifyingPurchase(true);
 
     try {
-      const response = await fetch('/api/verify-license', {
+      const response = await fetch('/api/verify-purchase', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ licenseKey: trimmedLicenseKey })
+        body: JSON.stringify({ receiptInfo: trimmedReceiptInfo })
       });
 
       const result = await response.json() as { success?: boolean; message?: string };
 
       if (response.ok && result.success) {
+        const pendingNamePack = getStoredNamePack();
+        if (pendingNamePack) {
+          setPremiumNames(pendingNamePack);
+          setFreeNames(pendingNamePack.slice(0, 3));
+          setCurrentName(pendingNamePack[0]);
+        }
+
         setIsPremiumUnlocked(true);
-        setStoredValue('premiumUnlocked', 'true');
-        setLicenseMessage('License verified. Your complete name pack is unlocked.');
+        setPurchaseMessage('Purchase verified. Your complete name pack is unlocked.');
         showToast('Name pack unlocked.');
-        trackEvent('license_verified', { product: 'chinese_name_pack' });
+        trackEvent('purchase_verified', { product: 'chinese_name_pack' });
         return;
       }
 
-      setLicenseError(result.message || 'Invalid license key');
+      setPurchaseError(result.message || 'Purchase could not be verified');
     } catch {
-      setLicenseError('Verification failed. Please try again.');
+      setPurchaseError('Verification failed. Please try again.');
     } finally {
-      setIsVerifyingLicense(false);
+      setIsVerifyingPurchase(false);
     }
-  }, [licenseKey, showToast]);
+  }, [receiptInfo, showToast]);
 
   const triggerGeneration = useCallback((action: () => void) => {
     if (isGenerating) return;
@@ -712,37 +733,38 @@ export default function App() {
                 <form
                   onSubmit={(event) => {
                     event.preventDefault();
-                    void verifyLicenseKey();
+                    void verifyPurchase();
                   }}
                   className="mt-4 rounded-xl border border-amber-400/20 bg-black/20 p-3"
                 >
                   <p className="text-[8px] tracking-[0.24em] text-amber-300 font-bold uppercase mb-1">Already purchased?</p>
                   <p className="text-[9px] text-stone-300 leading-relaxed mb-3">
-                    Enter your Gumroad license key to unlock your complete name pack.
+                    Paste your Gumroad order ID or receipt information to unlock your complete name pack.
                   </p>
-                  <input
-                    value={licenseKey}
+                  <textarea
+                    value={receiptInfo}
                     onChange={(event) => {
-                      setLicenseKey(event.target.value);
-                      setLicenseError('');
-                      setLicenseMessage('');
+                      setReceiptInfo(event.target.value);
+                      setPurchaseError('');
+                      setPurchaseMessage('');
                     }}
-                    disabled={isVerifyingLicense}
-                    placeholder="Gumroad license key"
-                    className="w-full rounded-lg border border-white/10 bg-stone-950/80 px-3 py-2 text-[10px] text-white outline-none placeholder:text-stone-500 focus:border-amber-400 disabled:opacity-60"
+                    disabled={isVerifyingPurchase}
+                    placeholder="Gumroad order ID, receipt link, email, or receipt text"
+                    rows={3}
+                    className="w-full resize-none rounded-lg border border-white/10 bg-stone-950/80 px-3 py-2 text-[10px] text-white outline-none placeholder:text-stone-500 focus:border-amber-400 disabled:opacity-60"
                   />
                   <button
                     type="submit"
-                    disabled={isVerifyingLicense}
+                    disabled={isVerifyingPurchase}
                     className="mt-2 w-full rounded-lg bg-white text-stone-950 py-2 text-[9px] font-bold tracking-[0.16em] uppercase disabled:opacity-60"
                   >
-                    {isVerifyingLicense ? 'Verifying...' : 'Verify License Key'}
+                    {isVerifyingPurchase ? 'Verifying...' : 'Verify Purchase'}
                   </button>
-                  {licenseError ? (
-                    <p className="mt-2 text-[9px] leading-relaxed text-red-300">{licenseError}</p>
+                  {purchaseError ? (
+                    <p className="mt-2 text-[9px] leading-relaxed text-red-300">{purchaseError}</p>
                   ) : null}
-                  {licenseMessage ? (
-                    <p className="mt-2 text-[9px] leading-relaxed text-emerald-300">{licenseMessage}</p>
+                  {purchaseMessage ? (
+                    <p className="mt-2 text-[9px] leading-relaxed text-emerald-300">{purchaseMessage}</p>
                   ) : null}
                 </form>
               </div>
