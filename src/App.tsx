@@ -49,7 +49,6 @@ declare global {
   }
 }
 
-const initialUniqueIpId = `IP ID: YR-${Math.floor(10000 + Math.random() * 90000)}`;
 const gaMeasurementId = import.meta.env.VITE_GA_MEASUREMENT_ID as string | undefined;
 
 function getStoredValue(key: string) {
@@ -185,6 +184,140 @@ function trackEvent(eventName: string, params: Record<string, unknown> = {}) {
   window.gtag('event', eventName, params);
 }
 
+function loadCanvasImage(src: string) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = reject;
+    image.src = src;
+  });
+}
+
+function drawContainImage(ctx: CanvasRenderingContext2D, image: HTMLImageElement | HTMLCanvasElement, x: number, y: number, width: number, height: number) {
+  const imageRatio = image.width / image.height;
+  const boxRatio = width / height;
+  const drawWidth = imageRatio > boxRatio ? width : height * imageRatio;
+  const drawHeight = imageRatio > boxRatio ? width / imageRatio : height;
+  const drawX = x + (width - drawWidth) / 2;
+  const drawY = y + (height - drawHeight) / 2;
+  ctx.drawImage(image, drawX, drawY, drawWidth, drawHeight);
+}
+
+function createSoftLogoImage(image: HTMLImageElement) {
+  const canvas = document.createElement('canvas');
+  canvas.width = image.width;
+  canvas.height = image.height;
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return image;
+
+  ctx.drawImage(image, 0, 0);
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const data = imageData.data;
+
+  for (let i = 0; i < data.length; i += 4) {
+    const red = data[i];
+    const green = data[i + 1];
+    const blue = data[i + 2];
+
+    if (red > 238 && green > 238 && blue > 238) {
+      data[i + 3] = 0;
+    } else if (red > 220 && green > 220 && blue > 220) {
+      data[i + 3] = Math.floor(data[i + 3] * 0.28);
+    }
+  }
+
+  ctx.putImageData(imageData, 0, 0);
+  return canvas;
+}
+
+function drawLogoMark(ctx: CanvasRenderingContext2D, logoImage: HTMLCanvasElement | HTMLImageElement, x: number, y: number, size: number) {
+  ctx.save();
+  ctx.fillStyle = 'rgba(232, 216, 184, 0.58)';
+  ctx.beginPath();
+  ctx.ellipse(x + size / 2, y + size / 2, size * 0.58, size * 0.48, -0.12, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  drawContainImage(ctx, logoImage, x, y, size, size);
+}
+
+function drawWrappedText(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, maxWidth: number, lineHeight: number, maxLines: number) {
+  const words = text.split(' ');
+  const lines: string[] = [];
+  let currentLine = '';
+
+  for (const word of words) {
+    const nextLine = currentLine ? `${currentLine} ${word}` : word;
+    if (ctx.measureText(nextLine).width > maxWidth && currentLine) {
+      lines.push(currentLine);
+      currentLine = word;
+      if (lines.length === maxLines) break;
+    } else {
+      currentLine = nextLine;
+    }
+  }
+
+  if (currentLine && lines.length < maxLines) lines.push(currentLine);
+  lines.forEach((line, index) => ctx.fillText(line, x, y + index * lineHeight));
+}
+
+function setFittedNameFont(ctx: CanvasRenderingContext2D, text: string, fontFamily: string, maxSize: number, minSize: number, maxWidth: number) {
+  let size = maxSize;
+  ctx.font = `${size}px ${fontFamily}`;
+
+  while (size > minSize && ctx.measureText(text).width > maxWidth) {
+    size -= 8;
+    ctx.font = `${size}px ${fontFamily}`;
+  }
+}
+
+function getSceneryTagline(scenery: SceneryType) {
+  const taglines: Record<SceneryType, string> = {
+    bamboo: 'Quiet Strength in Every Season',
+    jiangnan: 'Grace Flowing Through Mist and Water',
+    mountain: 'Vision Beyond the Horizon',
+    desert: 'Freedom Written in Wind and Sand'
+  };
+
+  return taglines[scenery];
+}
+
+function getIdentityInitials(pinyin: string) {
+  const initials = pinyin
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .split(/[\s-]+/)
+    .filter(Boolean)
+    .map((part) => part[0]?.toUpperCase() || '')
+    .join('');
+
+  return initials.slice(0, 2) || 'CI';
+}
+
+function getDateCode(date: Date) {
+  const year = String(date.getFullYear()).slice(-2);
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}${month}${day}`;
+}
+
+function getStableNameCode(name: NameItem, dateCode: string) {
+  const source = `${name.nameTw}|${name.nameCn}|${name.pinyin}|${dateCode}`;
+  let hash = 0;
+
+  for (let i = 0; i < source.length; i += 1) {
+    hash = (hash * 31 + source.charCodeAt(i)) % 10000;
+  }
+
+  return String(hash).padStart(4, '0');
+}
+
+function getCulturalIdentityNo(name: NameItem, date = new Date()) {
+  const dateCode = getDateCode(date);
+  return `CCI-${getIdentityInitials(name.pinyin)}-${dateCode}-${getStableNameCode(name, dateCode)}`;
+}
+
 const sceneryConfig: Record<SceneryType, SceneryConfigItem> = {
   bamboo: { image: 'https://images.unsplash.com/photo-1504618223053-559bdef9dd5a?q=80&w=1000&auto=format&fit=crop', localPath: '/1.jpg', labelTw: 'Bamboo', labelEn: 'Bamboo', color: 'from-green-950/85 to-emerald-900/40', tag: 'B' },
   jiangnan: { image: 'https://images.unsplash.com/photo-1528164344705-47542687000d?q=80&w=1000&auto=format&fit=crop', localPath: '/2.jpg', labelTw: 'Jiangnan', labelEn: 'Jiangnan', color: 'from-blue-950/85 to-cyan-900/40', tag: 'J' },
@@ -263,7 +396,7 @@ export default function App() {
   const [isSimp, setIsSimp] = useState<boolean>(false);
   const [isGenerating, setIsGenerating] = useState<boolean>(true); 
   const [, setShowCheckout] = useState<boolean>(false);
-  const [showQR, setShowQR] = useState<boolean>(false);
+  const [showQR] = useState<boolean>(false);
   const [isPremiumUnlocked, setIsPremiumUnlocked] = useState<boolean>(false);
   
   const [activeTier, setActiveTier] = useState<number>(1);
@@ -273,7 +406,6 @@ export default function App() {
   const [purchaseMessage, setPurchaseMessage] = useState<string>('');
   const [purchaseError, setPurchaseError] = useState<string>('');
 
-  const [uniqueIpId] = useState(initialUniqueIpId);
   const cardRef = useRef<HTMLDivElement>(null);
   const downloadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -396,49 +528,193 @@ export default function App() {
   }, [activeScenery, refreshFreeNames, triggerGeneration]);
 
   const handleDownloadClick = () => {
-    if (isGenerating || !cardRef.current) return;
+    if (isGenerating) return;
     if (isPremiumUnlocked) {
       trackEvent('pdf_downloaded', { report_type: 'premium_identity_report' });
     }
-    const targetCard = cardRef.current;
-    setShowQR(true);
     showToast('Saving Art...');
     
     downloadTimerRef.current = setTimeout(() => {
-      const loadHtml2Canvas = () => {
-        if (window.html2canvas) return Promise.resolve(window.html2canvas);
-        
-        const existingScript = document.querySelector('script[src*="html2canvas.min.js"]');
-        if (existingScript) {
-          return new Promise<Html2Canvas>((resolve) => {
-            existingScript.addEventListener('load', () => {
-              if (window.html2canvas) resolve(window.html2canvas);
-            });
-          });
+      Promise.all([
+        loadCanvasImage('/qrcode.png'),
+        loadCanvasImage('/LOGO.jpg')
+      ]).then(([qrImage, logoImage]) => {
+        const softLogoImage = createSoftLogoImage(logoImage);
+        const canvas = document.createElement('canvas');
+        canvas.width = 1024;
+        canvas.height = 1365;
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) throw new Error('Canvas is not available.');
+
+        const nameText = isSimp ? currentName.nameCn : currentName.nameTw;
+        const paperGradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        paperGradient.addColorStop(0, '#f4efe3');
+        paperGradient.addColorStop(0.48, '#efe5d3');
+        paperGradient.addColorStop(1, '#e2d2b8');
+        ctx.fillStyle = paperGradient;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.globalAlpha = 0.16;
+        for (let i = 0; i < 90; i += 1) {
+          const x = (i * 137) % canvas.width;
+          const y = (i * 211) % canvas.height;
+          ctx.fillStyle = i % 2 === 0 ? '#b8a681' : '#fffaf0';
+          ctx.beginPath();
+          ctx.ellipse(x, y, 1.5 + (i % 5), 34 + (i % 17), -0.25, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+
+        ctx.save();
+        ctx.globalAlpha = 0.18;
+        ctx.fillStyle = '#3d493f';
+        ctx.beginPath();
+        ctx.moveTo(0, 520);
+        ctx.bezierCurveTo(150, 390, 250, 470, 370, 325);
+        ctx.bezierCurveTo(505, 170, 610, 310, 730, 235);
+        ctx.bezierCurveTo(835, 168, 920, 255, 1024, 195);
+        ctx.lineTo(1024, 640);
+        ctx.lineTo(0, 700);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.globalAlpha = 0.12;
+        ctx.fillStyle = '#25342e';
+        ctx.beginPath();
+        ctx.moveTo(0, 650);
+        ctx.bezierCurveTo(170, 545, 260, 575, 410, 455);
+        ctx.bezierCurveTo(580, 315, 710, 455, 830, 365);
+        ctx.bezierCurveTo(925, 290, 980, 360, 1024, 330);
+        ctx.lineTo(1024, 780);
+        ctx.lineTo(0, 820);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+
+        ctx.save();
+        ctx.globalAlpha = 0.3;
+        ctx.strokeStyle = '#394b43';
+        ctx.lineWidth = 7;
+        for (let i = 0; i < 8; i += 1) {
+          ctx.beginPath();
+          ctx.moveTo(110 + i * 120, 240 + i * 16);
+          ctx.bezierCurveTo(150 + i * 90, 165 + i * 20, 210 + i * 95, 200 + i * 12, 280 + i * 92, 125 + i * 18);
+          ctx.stroke();
+        }
+        ctx.restore();
+
+        if (isPremiumUnlocked) {
+          ctx.strokeStyle = 'rgba(171, 125, 54, 0.58)';
+          ctx.lineWidth = 3;
+          ctx.strokeRect(62, 62, 900, 1241);
+          ctx.strokeStyle = 'rgba(171, 125, 54, 0.32)';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(82, 82, 860, 1201);
+
+          ctx.textAlign = 'center';
+          ctx.fillStyle = '#8a613e';
+          ctx.font = "24px 'Noto Serif', serif";
+          ctx.fillText('CHINESE CULTURAL IDENTITY CERTIFICATE', canvas.width / 2, 140);
+
+          ctx.strokeStyle = 'rgba(171, 125, 54, 0.55)';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(220, 172);
+          ctx.lineTo(804, 172);
+          ctx.stroke();
         }
 
-        return new Promise<Html2Canvas>((resolve, reject) => {
-          const script = document.createElement('script');
-          script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
-          script.onload = () => {
-            if (window.html2canvas) resolve(window.html2canvas);
-          };
-          script.onerror = reject;
-          document.head.appendChild(script);
-        });
-      };
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#2c241d';
+        setFittedNameFont(ctx, nameText, font.font, isPremiumUnlocked ? 330 : 350, 190, isPremiumUnlocked ? 720 : 780);
+        ctx.fillText(nameText, canvas.width / 2, isPremiumUnlocked ? 505 : 555);
 
-      loadHtml2Canvas().then((html2canvas) => {
-        html2canvas(targetCard, { useCORS: true, scale: 2, backgroundColor: '#0c0a09' }).then((canvas: HTMLCanvasElement) => {
-          const link = document.createElement('a');
-          link.download = 'YuranYuxian-AestheticName.jpg';
-          link.href = canvas.toDataURL('image/jpeg', 0.9);
-          link.click();
-          setShowQR(false);
-        });
+        ctx.font = "34px 'Noto Serif', serif";
+        ctx.fillStyle = '#7b5c38';
+        ctx.fillText(currentName.pinyin, canvas.width / 2, isPremiumUnlocked ? 580 : 635);
+
+        if (isPremiumUnlocked) {
+          ctx.strokeStyle = 'rgba(171, 125, 54, 0.42)';
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.moveTo(180, 640);
+          ctx.lineTo(844, 640);
+          ctx.stroke();
+
+          ctx.textAlign = 'left';
+          ctx.font = "18px 'Noto Serif', serif";
+          ctx.fillStyle = '#9b6d31';
+          ctx.fillText('NAME STORY', 182, 704);
+
+          ctx.font = "25px 'Noto Serif', serif";
+          ctx.fillStyle = '#5b5146';
+          drawWrappedText(ctx, currentName.storyEn || '', 182, 755, 660, 39, 5);
+
+          ctx.strokeStyle = 'rgba(171, 125, 54, 0.36)';
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.moveTo(180, 1022);
+          ctx.lineTo(844, 1022);
+          ctx.stroke();
+
+          ctx.font = "18px 'Noto Serif', serif";
+          ctx.fillStyle = '#76624a';
+          ctx.fillText(`Identity No. ${identityNo}`, 182, 1074);
+          ctx.textAlign = 'right';
+          ctx.fillText(`Issue Date: ${new Date().toLocaleDateString('en-US')}`, 844, 1074);
+        } else {
+          ctx.save();
+          ctx.globalAlpha = 0.18;
+          ctx.strokeStyle = '#9b6d31';
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.moveTo(302, 690);
+          ctx.lineTo(722, 690);
+          ctx.stroke();
+          ctx.restore();
+
+          ctx.textAlign = 'center';
+          ctx.font = "30px 'Noto Serif', serif";
+          ctx.fillStyle = '#5b5146';
+          ctx.fillText(getSceneryTagline(currentName.scenery), canvas.width / 2, 760);
+
+          ctx.font = "22px 'Noto Serif', serif";
+          ctx.fillStyle = '#8a613e';
+          ctx.fillText('Unlock the full Cultural Identity Certificate', canvas.width / 2, 1015);
+        }
+
+        const qrSize = 90;
+        const qrPadding = 8;
+        const qrBox = qrSize + qrPadding * 2;
+        const qrX = (canvas.width - qrBox) / 2;
+        const qrY = 1130;
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(qrX, qrY, qrBox, qrBox);
+        drawContainImage(ctx, qrImage, qrX + qrPadding, qrY + qrPadding, qrSize, qrSize);
+
+        ctx.font = "16px 'Noto Serif', serif";
+        ctx.fillStyle = '#76624a';
+        ctx.textAlign = 'center';
+        ctx.fillText(isPremiumUnlocked ? 'Verify your Cultural Identity' : 'Scan to visit Zen Name Generator', canvas.width / 2, qrY + qrBox + 34);
+
+        ctx.textAlign = 'right';
+        ctx.font = "18px 'Noto Serif', serif";
+        ctx.fillStyle = '#6d4d36';
+        if (isPremiumUnlocked) {
+          ctx.fillText('Issued by', 650, 1190);
+          drawLogoMark(ctx, softLogoImage, 680, 1045, 260);
+        } else {
+          ctx.fillText('Issued by', 830, 1262);
+          drawLogoMark(ctx, softLogoImage, 840, 1188, 136);
+        }
+
+        const link = document.createElement('a');
+        link.download = 'YuranYuxian-AestheticName.jpg';
+        link.href = canvas.toDataURL('image/jpeg', 0.92);
+        link.click();
       }).catch(() => {
         showToast('Download failed. Please check network.');
-        setShowQR(false);
       });
     }, 400);
   };
@@ -463,6 +739,7 @@ export default function App() {
   const cfg = sceneryConfig[activeScenery];
   const font = fontStyles[fontStyle];
   const displayName = isSimp ? currentName.nameCn : currentName.nameTw;
+  const identityNo = getCulturalIdentityNo(currentName);
   const identityInsight = getIdentityInsight(currentName);
   const lockedPreviewCount = 17;
   const useMainCheckoutOnly = true;
@@ -960,7 +1237,9 @@ export default function App() {
               </div>
 
               <div className="mt-8 mb-4 flex flex-col items-center text-stone-400 space-y-2 shrink-0">
-                <div className="text-[9px] font-mono tracking-widest opacity-60 uppercase">{uniqueIpId}</div>
+                {isPremiumUnlocked ? (
+                  <div className="text-[9px] font-mono tracking-widest opacity-60 uppercase">Identity No. {identityNo}</div>
+                ) : null}
                 <div className="flex flex-col items-center gap-0.5">
                   <span className="text-[8px] tracking-[0.2em] uppercase font-light">Secured By</span>
                   <span className="text-[10px] font-medium tracking-wide">Gumroad</span>

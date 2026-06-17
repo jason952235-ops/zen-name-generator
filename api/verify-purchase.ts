@@ -132,16 +132,12 @@ async function fetchGumroadJson(url: string, accessToken: string) {
   });
 
   const result = await response.json();
-  console.log('GUMROAD RESPONSE:', JSON.stringify(result, null, 2));
 
   if (!response.ok) return null;
   return normalizeSalesResponse(result);
 }
 
 async function findMatchingSale(receiptInfo: string, productId: string, accessToken: string) {
-  console.log('receiptInfo=', receiptInfo);
-  console.log('productId=', productId);
-
   const encodedAccessToken = encodeURIComponent(accessToken);
   const encodedProductId = encodeURIComponent(productId);
   const directCandidates = receiptInfo.match(/[a-zA-Z0-9_-]{8,}/g) || [];
@@ -150,7 +146,6 @@ async function findMatchingSale(receiptInfo: string, productId: string, accessTo
     const saleUrl = `https://api.gumroad.com/v2/sales/${encodeURIComponent(candidate)}?access_token=${encodedAccessToken}`;
     const saleResult = await fetchGumroadJson(saleUrl, accessToken);
     if (saleResult?.sale && saleMatchesProduct(saleResult.sale, productId) && saleMatchesReceiptInfo(saleResult.sale, receiptInfo)) {
-      console.log('FOUND SALE=', JSON.stringify(saleResult.sale, null, 2));
       return saleResult.sale;
     }
   }
@@ -170,7 +165,6 @@ async function findMatchingSale(receiptInfo: string, productId: string, accessTo
       });
 
       if (matchedSale) {
-        console.log('FOUND SALE=', JSON.stringify(matchedSale, null, 2));
         return matchedSale;
       }
 
