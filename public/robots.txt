@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://zen-name-generator.vercel.app/sitemap.xml
