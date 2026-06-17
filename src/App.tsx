@@ -52,6 +52,43 @@ declare global {
 const initialUniqueIpId = `IP ID: YR-${Math.floor(10000 + Math.random() * 90000)}`;
 const gaMeasurementId = import.meta.env.VITE_GA_MEASUREMENT_ID as string | undefined;
 
+function getStoredValue(key: string) {
+  if (typeof window === 'undefined') return null;
+  return window.localStorage.getItem(key);
+}
+
+function setStoredValue(key: string, value: string) {
+  if (typeof window === 'undefined') return;
+  window.localStorage.setItem(key, value);
+}
+
+function isSceneryType(value: string | null): value is SceneryType {
+  return value === 'bamboo' || value === 'jiangnan' || value === 'mountain' || value === 'desert';
+}
+
+function isGenderType(value: string | null): value is GenderType {
+  return value === 'male' || value === 'female' || value === 'neutral';
+}
+
+function getStoredScenery() {
+  const stored = getStoredValue('selectedScenery');
+  return isSceneryType(stored) ? stored : 'bamboo';
+}
+
+function getStoredGender() {
+  const stored = getStoredValue('selectedGender');
+  return isGenderType(stored) ? stored : 'neutral';
+}
+
+function getStoredFontStyle() {
+  const stored = getStoredValue('selectedFontStyle');
+  return stored && Object.keys(fontStyles).includes(stored) ? stored : 'cursive';
+}
+
+function getStoredPremiumUnlocked() {
+  return getStoredValue('premiumUnlocked') === 'true';
+}
+
 function getNamePool(scenery: SceneryType, gender: GenderType) {
   const exactPool = nameDatabase.filter((name) => name.scenery === scenery && name.gender === gender);
   if (exactPool.length > 0) return exactPool;
@@ -180,7 +217,9 @@ const RitualLoader = ({ isGenerating }: { isGenerating: boolean }) => (
   </div>
 );
 
-const initialPremiumNameSet = pickUniqueNames('bamboo', 'neutral', 20);
+const initialScenery = getStoredScenery();
+const initialGender = getStoredGender();
+const initialPremiumNameSet = pickUniqueNames(initialScenery, initialGender, 20);
 const initialFreeNameSet = initialPremiumNameSet.slice(0, 3);
 const fallbackName: NameItem = {
   scenery: 'bamboo',
@@ -193,8 +232,8 @@ const fallbackName: NameItem = {
 const initialDisplayName = initialFreeNameSet[0] ?? nameDatabase[0] ?? fallbackName;
 
 export default function App() {
-  const [activeScenery, setActiveScenery] = useState<SceneryType>('bamboo');
-  const [genderFilter, setGenderFilter] = useState<GenderType>('neutral');
+  const [activeScenery, setActiveScenery] = useState<SceneryType>(initialScenery);
+  const [genderFilter, setGenderFilter] = useState<GenderType>(initialGender);
   
   const [currentName, setCurrentName] = useState<NameItem>(initialDisplayName);
   
@@ -205,15 +244,19 @@ export default function App() {
     return initialPremiumNameSet.length > 0 ? initialPremiumNameSet : [initialDisplayName];
   });
 
-  const [fontStyle, setFontStyle] = useState<string>('cursive');
+  const [fontStyle, setFontStyle] = useState<string>(() => getStoredFontStyle());
   const [isSimp, setIsSimp] = useState<boolean>(false);
   const [isGenerating, setIsGenerating] = useState<boolean>(true); 
   const [, setShowCheckout] = useState<boolean>(false);
   const [showQR, setShowQR] = useState<boolean>(false);
-  const [isPremiumUnlocked] = useState<boolean>(false);
+  const [isPremiumUnlocked, setIsPremiumUnlocked] = useState<boolean>(() => getStoredPremiumUnlocked());
   
   const [activeTier, setActiveTier] = useState<number>(1);
   const [toastMessage, setToastMessage] = useState<string>('');
+  const [licenseKey, setLicenseKey] = useState<string>('');
+  const [isVerifyingLicense, setIsVerifyingLicense] = useState<boolean>(false);
+  const [licenseMessage, setLicenseMessage] = useState<string>('');
+  const [licenseError, setLicenseError] = useState<string>('');
 
   const [uniqueIpId] = useState(initialUniqueIpId);
   const cardRef = useRef<HTMLDivElement>(null);
@@ -237,6 +280,18 @@ export default function App() {
     trackEvent('page_view', { page_path: window.location.pathname });
   }, []);
 
+  useEffect(() => {
+    setStoredValue('selectedScenery', activeScenery);
+    setStoredValue('selectedGender', genderFilter);
+    setStoredValue('selectedFontStyle', fontStyle);
+  }, [activeScenery, genderFilter, fontStyle]);
+
+  useEffect(() => {
+    if (isPremiumUnlocked) {
+      setStoredValue('premiumUnlocked', 'true');
+    }
+  }, [isPremiumUnlocked]);
+
   const refreshFreeNames = useCallback((scenery: SceneryType, gender: GenderType, currentObj?: NameItem) => {
     const names = pickUniqueNames(scenery, gender, 20, currentObj?.nameTw);
     if (names.length === 0) return;
@@ -253,6 +308,44 @@ export default function App() {
       "_blank"
     );
   }, []);
+
+  const verifyLicenseKey = useCallback(async () => {
+    const trimmedLicenseKey = licenseKey.trim();
+    setLicenseMessage('');
+    setLicenseError('');
+
+    if (!trimmedLicenseKey) {
+      setLicenseError('Please enter your Gumroad license key.');
+      return;
+    }
+
+    setIsVerifyingLicense(true);
+
+    try {
+      const response = await fetch('/api/verify-license', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ licenseKey: trimmedLicenseKey })
+      });
+
+      const result = await response.json() as { success?: boolean; message?: string };
+
+      if (response.ok && result.success) {
+        setIsPremiumUnlocked(true);
+        setStoredValue('premiumUnlocked', 'true');
+        setLicenseMessage('License verified. Your complete name pack is unlocked.');
+        showToast('Name pack unlocked.');
+        trackEvent('license_verified', { product: 'chinese_name_pack' });
+        return;
+      }
+
+      setLicenseError(result.message || 'Invalid license key');
+    } catch {
+      setLicenseError('Verification failed. Please try again.');
+    } finally {
+      setIsVerifyingLicense(false);
+    }
+  }, [licenseKey, showToast]);
 
   const triggerGeneration = useCallback((action: () => void) => {
     if (isGenerating) return;
@@ -531,6 +624,7 @@ export default function App() {
                 <div className="space-y-2 max-h-[360px] overflow-y-auto hide-scrollbar pr-1">
                   {premiumNames.map((name, index) => {
                     const nameText = isSimp ? name.nameCn : name.nameTw;
+                    const englishMeaning = name.nameEn || name.storyEn || 'A poetic Chinese identity name.';
                     return (
                       <button
                         key={`${name.nameTw}-premium-${index}`}
@@ -547,7 +641,10 @@ export default function App() {
                           </div>
                           <span className="text-[8px] uppercase tracking-widest shrink-0">Full</span>
                         </div>
-                        <p className={`mt-2 text-[9px] leading-relaxed line-clamp-2 ${currentName.nameTw === name.nameTw ? 'text-stone-800' : 'text-stone-300'}`}>{name.storyEn}</p>
+                        <div className={`mt-2 space-y-1 text-[9px] leading-relaxed ${currentName.nameTw === name.nameTw ? 'text-stone-800' : 'text-stone-300'}`}>
+                          <p><strong>English meaning:</strong> {englishMeaning}</p>
+                          <p><strong>Zen-inspired story:</strong> {name.storyEn}</p>
+                        </div>
                       </button>
                     );
                   })}
@@ -611,6 +708,43 @@ export default function App() {
                 >
                   <Crown size={14} /> Unlock Name Pack – US$4.99
                 </button>
+
+                <form
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    void verifyLicenseKey();
+                  }}
+                  className="mt-4 rounded-xl border border-amber-400/20 bg-black/20 p-3"
+                >
+                  <p className="text-[8px] tracking-[0.24em] text-amber-300 font-bold uppercase mb-1">Already purchased?</p>
+                  <p className="text-[9px] text-stone-300 leading-relaxed mb-3">
+                    Enter your Gumroad license key to unlock your complete name pack.
+                  </p>
+                  <input
+                    value={licenseKey}
+                    onChange={(event) => {
+                      setLicenseKey(event.target.value);
+                      setLicenseError('');
+                      setLicenseMessage('');
+                    }}
+                    disabled={isVerifyingLicense}
+                    placeholder="Gumroad license key"
+                    className="w-full rounded-lg border border-white/10 bg-stone-950/80 px-3 py-2 text-[10px] text-white outline-none placeholder:text-stone-500 focus:border-amber-400 disabled:opacity-60"
+                  />
+                  <button
+                    type="submit"
+                    disabled={isVerifyingLicense}
+                    className="mt-2 w-full rounded-lg bg-white text-stone-950 py-2 text-[9px] font-bold tracking-[0.16em] uppercase disabled:opacity-60"
+                  >
+                    {isVerifyingLicense ? 'Verifying...' : 'Verify License Key'}
+                  </button>
+                  {licenseError ? (
+                    <p className="mt-2 text-[9px] leading-relaxed text-red-300">{licenseError}</p>
+                  ) : null}
+                  {licenseMessage ? (
+                    <p className="mt-2 text-[9px] leading-relaxed text-emerald-300">{licenseMessage}</p>
+                  ) : null}
+                </form>
               </div>
               )}
             </section>
