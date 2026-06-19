@@ -165,7 +165,15 @@ function getIdentityInsight(name: NameItem) {
 }
 
 function initAnalytics() {
-  if (!gaMeasurementId || isAnalyticsConfigured) return;
+  console.log('GA INIT', gaMeasurementId);
+  if (!gaMeasurementId) {
+    console.warn('GA INIT skipped: gaMeasurementId is missing');
+    return;
+  }
+  if (isAnalyticsConfigured) {
+    console.warn('GA INIT skipped: analytics already configured');
+    return;
+  }
 
   window.dataLayer = window.dataLayer || [];
   if (!window.gtag) {
@@ -188,7 +196,15 @@ function initAnalytics() {
 }
 
 function trackEvent(eventName: string, params: Record<string, unknown> = {}) {
-  if (!gaMeasurementId || !window.gtag) return;
+  console.log('GA EVENT', eventName, params);
+  if (!gaMeasurementId) {
+    console.warn('GA EVENT skipped: gaMeasurementId is missing', eventName);
+    return;
+  }
+  if (!window.gtag) {
+    console.warn('GA EVENT skipped: window.gtag is missing', eventName);
+    return;
+  }
   window.gtag('event', eventName, { send_to: gaMeasurementId, ...params });
 }
 
