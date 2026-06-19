@@ -205,7 +205,22 @@ function trackEvent(eventName: string, params: Record<string, unknown> = {}) {
     console.warn('GA EVENT skipped: window.gtag is missing', eventName);
     return;
   }
-  window.gtag('event', eventName, { send_to: gaMeasurementId, ...params });
+
+  window.dataLayer = window.dataLayer || [];
+  const eventParams = eventName === 'generate_clicked'
+    ? { ...params, debug_mode: true }
+    : { send_to: gaMeasurementId, ...params };
+  const dataLayerLength = window.dataLayer.length;
+
+  window.gtag('event', eventName, eventParams);
+
+  const eventWasPushed = window.dataLayer
+    .slice(dataLayerLength)
+    .some((item) => Array.isArray(item) && item[0] === 'event' && item[1] === eventName);
+
+  if (!eventWasPushed) {
+    window.dataLayer.push(['event', eventName, eventParams]);
+  }
 }
 
 function trackClick(eventLabel: string, params: Record<string, unknown> = {}) {
@@ -544,10 +559,7 @@ export default function App() {
 
   const regenerate = useCallback(() => {
     trackClick('regenerate');
-    trackEvent('generate_clicked', {
-      scenery: activeScenery,
-      gender: genderFilter
-    });
+    trackEvent('generate_clicked', { debug_mode: true });
     triggerGeneration(() => refreshFreeNames(activeScenery, genderFilter, currentName));
   }, [activeScenery, genderFilter, currentName, refreshFreeNames, triggerGeneration]);
 
