@@ -49,7 +49,9 @@ declare global {
   }
 }
 
-const gaMeasurementId = import.meta.env.VITE_GA_MEASUREMENT_ID as string | undefined;
+const gaMeasurementId = (import.meta.env.VITE_GA_MEASUREMENT_ID as string | undefined) || 'G-QVDVWL5M28';
+const analyticsScriptId = 'google-analytics-gtag';
+let isAnalyticsConfigured = false;
 
 function getStoredValue(key: string) {
   if (typeof window === 'undefined') return null;
@@ -163,25 +165,39 @@ function getIdentityInsight(name: NameItem) {
 }
 
 function initAnalytics() {
-  if (!gaMeasurementId || window.gtag) return;
+  if (!gaMeasurementId || isAnalyticsConfigured) return;
 
   window.dataLayer = window.dataLayer || [];
-  window.gtag = (...args: unknown[]) => {
-    window.dataLayer?.push(args);
-  };
+  if (!window.gtag) {
+    window.gtag = (...args: unknown[]) => {
+      window.dataLayer?.push(args);
+    };
+  }
 
-  const script = document.createElement('script');
-  script.async = true;
-  script.src = `https://www.googletagmanager.com/gtag/js?id=${gaMeasurementId}`;
-  document.head.appendChild(script);
+  if (!document.getElementById(analyticsScriptId)) {
+    const script = document.createElement('script');
+    script.id = analyticsScriptId;
+    script.async = true;
+    script.src = `https://www.googletagmanager.com/gtag/js?id=${gaMeasurementId}`;
+    document.head.appendChild(script);
+  }
 
   window.gtag('js', new Date());
-  window.gtag('config', gaMeasurementId, { send_page_view: false });
+  window.gtag('config', gaMeasurementId);
+  isAnalyticsConfigured = true;
 }
 
 function trackEvent(eventName: string, params: Record<string, unknown> = {}) {
   if (!gaMeasurementId || !window.gtag) return;
-  window.gtag('event', eventName, params);
+  window.gtag('event', eventName, { send_to: gaMeasurementId, ...params });
+}
+
+function trackClick(eventLabel: string, params: Record<string, unknown> = {}) {
+  trackEvent('click', {
+    event_category: 'engagement',
+    event_label: eventLabel,
+    ...params
+  });
 }
 
 function loadCanvasImage(src: string) {
@@ -424,7 +440,6 @@ export default function App() {
 
   useEffect(() => {
     initAnalytics();
-    trackEvent('page_view', { page_path: window.location.pathname });
   }, []);
 
   useEffect(() => {
@@ -448,6 +463,7 @@ export default function App() {
 
   const openGumroadCheckout = useCallback(() => {
     storePendingNamePack(premiumNames);
+    trackClick('unlock_name_pack');
     trackEvent('premium_clicked', { price: 4.99, currency: 'USD' });
     trackEvent('checkout_started', { price: 4.99, currency: 'USD' });
     window.open(
@@ -457,6 +473,7 @@ export default function App() {
   }, [premiumNames]);
 
   const verifyPurchase = useCallback(async () => {
+    trackClick('verify_purchase');
     const trimmedReceiptInfo = receiptInfo.trim();
     setPurchaseMessage('');
     setPurchaseError('');
@@ -510,6 +527,7 @@ export default function App() {
   }, [isGenerating]);
 
   const regenerate = useCallback(() => {
+    trackClick('regenerate');
     trackEvent('generate_clicked', {
       scenery: activeScenery,
       gender: genderFilter
@@ -518,17 +536,20 @@ export default function App() {
   }, [activeScenery, genderFilter, currentName, refreshFreeNames, triggerGeneration]);
 
   const switchScenery = useCallback((s: SceneryType) => { 
+    trackClick('switch_scenery', { scenery: s });
     setActiveScenery(s); 
     triggerGeneration(() => refreshFreeNames(s, genderFilter)); 
   }, [genderFilter, refreshFreeNames, triggerGeneration]);
 
   const switchGender = useCallback((g: GenderType) => { 
+    trackClick('switch_gender', { gender: g });
     setGenderFilter(g); 
     triggerGeneration(() => refreshFreeNames(activeScenery, g)); 
   }, [activeScenery, refreshFreeNames, triggerGeneration]);
 
   const handleDownloadClick = () => {
     if (isGenerating) return;
+    trackClick('save_art');
     if (isPremiumUnlocked) {
       trackEvent('pdf_downloaded', { report_type: 'premium_identity_report' });
     }
@@ -720,6 +741,7 @@ export default function App() {
   };
 
   const speak = useCallback(() => {
+    trackClick('pronunciation');
     if (!window.speechSynthesis) { showToast("Your browser does not support text-to-speech."); return; }
     window.speechSynthesis.cancel();
     const textToSpeak = isSimp ? currentName.nameCn : currentName.nameTw;
@@ -810,7 +832,10 @@ export default function App() {
                   {Object.entries(fontStyles).map(([k, v]) => (
                     <button 
                       key={k} 
-                      onClick={() => setFontStyle(k)} 
+                      onClick={() => {
+                        trackClick('switch_font', { font_style: k });
+                        setFontStyle(k);
+                      }} 
                       disabled={isGenerating}
                       className={`flex-1 py-1 rounded-lg text-[9px] uppercase tracking-wider transition-all border shadow-sm disabled:cursor-not-allowed ${fontStyle === k ? 'bg-amber-800 border-amber-800 text-white shadow-md' : 'bg-white/60 border-stone-300 text-stone-700 hover:border-amber-700'}`} 
                       style={{ fontFamily: v.font }}
@@ -832,8 +857,14 @@ export default function App() {
                 <RitualLoader isGenerating={isGenerating} />
                 <div className="w-full flex justify-between items-start z-10">
                   <div data-html2canvas-ignore="true" className="bg-stone-950/30 backdrop-blur-md border border-white/10 rounded-full p-0.5 flex text-[9px] shadow-sm tracking-wider uppercase">
-                    <button onClick={() => setIsSimp(false)} className={`px-2 py-0.5 rounded-full transition-colors ${!isSimp ? 'bg-white/20 text-white font-medium shadow-sm' : 'text-white/50 hover:text-white/80'}`}>TRAD.</button>
-                    <button onClick={() => setIsSimp(true)} className={`px-2 py-0.5 rounded-full transition-colors ${isSimp ? 'bg-white/20 text-white font-medium shadow-sm' : 'text-white/50 hover:text-white/80'}`}>SIMP.</button>
+                    <button onClick={() => {
+                      trackClick('switch_language', { language_mode: 'traditional' });
+                      setIsSimp(false);
+                    }} className={`px-2 py-0.5 rounded-full transition-colors ${!isSimp ? 'bg-white/20 text-white font-medium shadow-sm' : 'text-white/50 hover:text-white/80'}`}>TRAD.</button>
+                    <button onClick={() => {
+                      trackClick('switch_language', { language_mode: 'simplified' });
+                      setIsSimp(true);
+                    }} className={`px-2 py-0.5 rounded-full transition-colors ${isSimp ? 'bg-white/20 text-white font-medium shadow-sm' : 'text-white/50 hover:text-white/80'}`}>SIMP.</button>
                   </div>
                   <span className="text-white/30 text-[8px] tracking-widest uppercase pt-1">{cfg.labelEn} Concept</span>
                 </div>
@@ -874,7 +905,10 @@ export default function App() {
                     return (
                       <button
                         key={`${name.nameTw}-${index}`}
-                        onClick={() => setCurrentName(name)}
+                        onClick={() => {
+                          trackClick('select_free_name', { scenery: name.scenery, gender: name.gender });
+                          setCurrentName(name);
+                        }}
                         className={`w-full text-left rounded-xl border p-3 transition-all ${currentName.nameTw === name.nameTw ? 'bg-stone-900 text-amber-50 border-stone-900 shadow-md' : 'bg-[#FDFBF7] text-stone-800 border-stone-200 hover:border-amber-700/60'}`}
                       >
                         <div className="flex items-center justify-between gap-3">
@@ -926,7 +960,10 @@ export default function App() {
                     return (
                       <button
                         key={`${name.nameTw}-premium-${index}`}
-                        onClick={() => setCurrentName(name)}
+                        onClick={() => {
+                          trackClick('select_premium_name', { scenery: name.scenery, gender: name.gender });
+                          setCurrentName(name);
+                        }}
                         className={`w-full text-left rounded-xl border p-3 transition-all ${currentName.nameTw === name.nameTw ? 'bg-amber-400 text-stone-950 border-amber-300 shadow-md' : 'bg-white/[0.06] text-stone-100 border-white/10 hover:border-amber-400/70'}`}
                       >
                         <div className="flex items-center justify-between gap-3">
