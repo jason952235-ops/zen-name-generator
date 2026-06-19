@@ -176,11 +176,9 @@ function initAnalytics() {
   }
 
   window.dataLayer = window.dataLayer || [];
-  if (!window.gtag) {
-    window.gtag = (...args: unknown[]) => {
-      window.dataLayer?.push(args);
-    };
-  }
+  window.gtag = function gtag() {
+    window.dataLayer?.push(arguments);
+  };
 
   if (!document.getElementById(analyticsScriptId)) {
     const script = document.createElement('script');
